@@ -532,7 +532,7 @@ function AdminPanel({ submissions, loading, onRefresh }) {
           <Logo size={44} />
           <div>
             <h2 style={{ margin:0, fontSize:20, color: C.dark }}>Панель администратора</h2>
-            <p style={{ margin:"2px 0 0", fontSize:13, color: C.grayMid }}>Всего анкет: {submissions.length} · данные из Google Sheets</p>
+            <p style={{ margin:"2px 0 0", fontSize:13, color: C.grayMid }}>Всего анкет: {submissions.length} · общая база для всех администраторов</p>
           </div>
           <button
             onClick={onRefresh}
@@ -583,30 +583,47 @@ function AdminPanel({ submissions, loading, onRefresh }) {
 }
 
 // ─── App root ─────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxMfMDlz3SER_j8NtPlL3ZXsycAtC6r-aDymBlmzNIvDlptXvRgA-tqkVJc1QCbIgzN/exec";
+const SUPABASE_URL = "https://nhlpsjwremebrbrivfbe.supabase.co";
+const SUPABASE_KEY = "sb_publishable_DfIfBNa9QEQyzPrpZzcNOA_SHIx_8hD";
+
+async function sbFetch(path, options = {}) {
+  const res = await fetch(SUPABASE_URL + path, {
+    ...options,
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + SUPABASE_KEY,
+      "Content-Type": "application/json",
+      "Prefer": options.prefer || "",
+      ...(options.headers || {}),
+    },
+  });
+  return res;
+}
 
 async function sendToSheets(submission) {
   try {
-    await fetch(SCRIPT_URL, {
+    await sbFetch("/rest/v1/ankety", {
       method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(submission),
+      prefer: "return=minimal",
+      body: JSON.stringify({
+        date: submission.date,
+        answers: submission.answers,
+      }),
     });
     return true;
   } catch(e) {
-    console.error("Sheets error:", e);
+    console.error("Supabase save error:", e);
     return false;
   }
 }
 
 async function loadFromSheets() {
   try {
-    const res = await fetch(SCRIPT_URL + "?action=get");
+    const res = await sbFetch("/rest/v1/ankety?select=*&order=date.desc");
     const data = await res.json();
-    return data.submissions || [];
+    return Array.isArray(data) ? data : [];
   } catch(e) {
-    console.error("Load error:", e);
+    console.error("Supabase load error:", e);
     return [];
   }
 }
@@ -645,7 +662,7 @@ export default function App() {
       )}
       {saveStatus === "ok" && (
         <div style={{ background:"#27ae60", color:"#fff", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>
-          ✅ Анкета успешно сохранена в Google Sheets!
+          ✅ Анкета успешно сохранена!
         </div>
       )}
       {saveStatus === "error" && (
