@@ -477,112 +477,114 @@ function AdminLogin({ onLogin }) {
 // ─── Admin panel ──────────────────────────────────────────────────────────────
 function AdminPanel({ submissions, loading, onRefresh }) {
   const [sel, setSel] = useState(null);
-  const [exp, setExp] = useState(null);
   const topRef = useRef(null);
 
-  const safeSubs = Array.isArray(submissions) ? submissions : [];
+  const safeSubs = (() => {
+    try { return Array.isArray(submissions) ? submissions : []; }
+    catch(e) { return []; }
+  })();
 
-  const doExport = (sub) => { exportToWord(sub); };
+  const doExport = (sub) => {
+    try { exportToWord(sub); } catch(e) { alert("Ошибка экспорта"); }
+  };
 
-  if (sel) return (
-    <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
-      <div ref={topRef} />
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-        <Btn onClick={() => setSel(null)} variant="ghost">← Все анкеты</Btn>
-        <Btn onClick={() => doExport(sel)} variant="yellow" disabled={exp === sel.id}>
-          {exp === sel.id ? "⏳ Открываем..." : "📄 Открыть для печати / PDF"}
-        </Btn>
-      </div>
-      <div style={{ background: C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:24, paddingBottom:20, borderBottom:`2px solid ${C.tealLight}` }}>
-          <Logo size={48} />
-          <div>
-            <h2 style={{ margin:0, fontSize:20, color: C.dark }}>{sel.answers["s0_1"] || "—"}</h2>
-            <p style={{ margin:"4px 0 0", fontSize:13, color: C.grayMid }}>
-              Дата рождения: {sel.answers["s0_2"] || "—"} · Заполнено: {new Date(sel.date).toLocaleString("ru-RU")}
-            </p>
-          </div>
+  if (sel) {
+    let secList = [];
+    try { secList = SECTIONS; } catch(e) {}
+    return (
+      <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
+        <div ref={topRef} />
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <button onClick={() => setSel(null)} style={{ ...S.btn("ghost") }}>← Все анкеты</button>
+          <button onClick={() => doExport(sel)} style={{ ...S.btn("yellow") }}>📄 Открыть для печати</button>
         </div>
-        {SECTIONS.map(sec => {
-          const sf = sec.fields.filter(f => sel.answers[f.id]).length;
-          return (
-            <div key={sec.id} style={{ marginBottom:28 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16, paddingBottom:10, borderBottom:`2px solid ${sec.color}33` }}>
-                <span style={{ fontSize:20 }}>{sec.icon}</span>
-                <span style={{ fontSize:16, fontWeight:700, color: C.dark }}>{sec.title}</span>
-                <Badge color={sec.color}>{sf}/{sec.fields.length}</Badge>
+        <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
+          <h2 style={{ fontSize:20, color:C.dark, marginBottom:4 }}>{sel.answers && sel.answers["s0_1"] ? sel.answers["s0_1"] : "—"}</h2>
+          <p style={{ fontSize:13, color:C.grayMid, marginBottom:20 }}>
+            Заполнено: {sel.date ? new Date(sel.date).toLocaleString("ru-RU") : "—"}
+          </p>
+          {secList.map(sec => (
+            <div key={sec.id} style={{ marginBottom:24 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12, paddingBottom:8, borderBottom:`2px solid ${sec.color}33` }}>
+                <span style={{ fontSize:18 }}>{sec.icon}</span>
+                <span style={{ fontSize:15, fontWeight:700, color:C.dark }}>{sec.title}</span>
               </div>
               {sec.fields.map((f, i) => (
-                <div key={f.id} style={{ marginBottom:14, paddingBottom:14, borderBottom:`1px solid ${C.grayBorder}` }}>
+                <div key={f.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.grayBorder}` }}>
                   <p style={{ fontSize:12, color:"#aaa", margin:"0 0 3px" }}>{i+1}. {f.label}</p>
-                  <p style={{ fontSize:14, color: sel.answers[f.id] ? C.dark : "#ccc", margin:0, background: C.grayLight, padding:"8px 12px", borderRadius:6, whiteSpace:"pre-wrap" }}>
-                    {sel.answers[f.id] || "Нет ответа"}
+                  <p style={{ fontSize:13, color: sel.answers && sel.answers[f.id] ? C.dark : "#ccc", margin:0, background:C.grayLight, padding:"7px 10px", borderRadius:6, whiteSpace:"pre-wrap", fontStyle: sel.answers && sel.answers[f.id] ? "normal" : "italic" }}>
+                    {sel.answers && sel.answers[f.id] ? sel.answers[f.id] : "Нет ответа"}
                   </p>
                 </div>
               ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
+      <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:24 }}>
+          <Logo size={44} />
+          <div>
+            <h2 style={{ margin:0, fontSize:20, color:C.dark }}>Панель администратора</h2>
+            <p style={{ margin:"2px 0 0", fontSize:13, color:C.grayMid }}>Всего анкет: {safeSubs.length} · общая база для всех администраторов</p>
+          </div>
+          <button onClick={onRefresh} disabled={loading} style={{ ...S.btn("ghost"), marginLeft:"auto", fontSize:12, padding:"8px 16px" }}>
+            {loading ? "⏳ Загружаем..." : "↻ Обновить"}
+          </button>
+        </div>
+
+        {loading && (
+          <div style={{ textAlign:"center", padding:"40px 0", color:C.grayMid }}>
+            <div style={{ fontSize:32, marginBottom:12 }}>⏳</div>
+            <p>Загружаем анкеты...</p>
+          </div>
+        )}
+
+        {!loading && safeSubs.length === 0 && (
+          <div style={{ textAlign:"center", padding:"48px 0", color:"#bbb" }}>
+            <div style={{ fontSize:48, marginBottom:12 }}>📋</div>
+            <p>Пока нет заполненных анкет</p>
+            <p style={{ fontSize:12, marginTop:8 }}>Нажмите «↻ Обновить» чтобы загрузить</p>
+          </div>
+        )}
+
+        {!loading && safeSubs.map((sub, idx) => {
+          let filled = 0;
+          try { filled = ALL_FIELDS.filter(f => sub.answers && sub.answers[f.id]).length; } catch(e) {}
+          const pct = Math.round(filled / TOTAL * 100);
+          const name = (sub.answers && sub.answers["s0_1"]) ? sub.answers["s0_1"] : "Без имени";
+          const city = (sub.answers && sub.answers["s0_4"]) ? sub.answers["s0_4"] : "";
+          const dateStr = sub.date ? new Date(sub.date).toLocaleDateString("ru-RU") : "—";
+          return (
+            <div key={sub.id || idx} style={{ background:C.grayLight, borderRadius:12, padding:"16px 20px", marginBottom:12, border:`1px solid ${C.grayBorder}` }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                <div style={{ flex:1 }}>
+                  <p style={{ margin:"0 0 2px", fontWeight:700, fontSize:15, color:C.dark }}>{name}</p>
+                  <p style={{ margin:"0 0 8px", fontSize:12, color:C.grayMid }}>
+                    {city}{city ? " · " : ""}{dateStr} · {filled}/{TOTAL} ({pct}%)
+                  </p>
+                  <div style={{ height:4, background:C.grayBorder, borderRadius:4, overflow:"hidden" }}>
+                    <div style={{ height:"100%", width:`${pct}%`, background:C.teal, borderRadius:4 }} />
+                  </div>
+                </div>
+                <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+                  <button onClick={() => { setSel(sub); topRef?.current?.scrollIntoView(); }} style={{ ...S.btn("ghost"), padding:"8px 16px" }}>👁 Просмотр</button>
+                  <button onClick={() => doExport(sub)} style={{ ...S.btn("yellow"), padding:"8px 16px" }}>📄 PDF</button>
+                </div>
+              </div>
             </div>
           );
         })}
       </div>
     </div>
   );
-
-  return (
-    <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
-      <div style={{ background: C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:24 }}>
-          <Logo size={44} />
-          <div>
-            <h2 style={{ margin:0, fontSize:20, color: C.dark }}>Панель администратора</h2>
-            <p style={{ margin:"2px 0 0", fontSize:13, color: C.grayMid }}>Всего анкет: {safeSubs.length} · общая база для всех администраторов</p>
-          </div>
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            style={{ ...S.btn("ghost"), marginLeft:"auto", fontSize:12, padding:"8px 16px" }}
-          >
-            {loading ? "⏳ Загружаем..." : "↻ Обновить"}
-          </button>
-        </div>
-        {loading && (
-          <div style={{ textAlign:"center", padding:"40px 0", color: C.grayMid }}>
-            <div style={{ fontSize:32, marginBottom:12 }}>⏳</div>
-            <p>Загружаем анкеты из Google Sheets...</p>
-          </div>
-        )}
-        {safeSubs.length === 0
-          ? <div style={{ textAlign:"center", padding:"60px 0", color:"#bbb" }}>
-              <div style={{ fontSize:48, marginBottom:12 }}>📋</div>
-              <p>Пока нет заполненных анкет</p>
-            </div>
-          : safeSubs.map(sub => {
-              const f = sub && sub.answers ? ALL_FIELDS.filter(fi => sub.answers[fi.id]).length : 0;
-              const p = Math.round(f / TOTAL * 100);
-              return (
-                <div key={sub.id} style={{ background: C.grayLight, borderRadius:12, padding:"16px 20px", marginBottom:12, border:`1px solid ${C.grayBorder}` }}>
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-                    <div style={{ flex:1 }}>
-                      <p style={{ margin:"0 0 2px", fontWeight:700, fontSize:15, color: C.dark }}>{sub.answers["s0_1"] || "Без имени"}</p>
-                      <p style={{ margin:"0 0 8px", fontSize:12, color: C.grayMid }}>
-                        {sub.answers["s0_4"] || ""}{sub.answers["s0_4"] ? " · " : ""}{new Date(sub.date).toLocaleDateString("ru-RU")} · {f}/{TOTAL} ответов ({p}%)
-                      </p>
-                      <ProgressBar pct={p} color={C.teal} height={4} />
-                    </div>
-                    <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-                      <Btn onClick={() => { setSel(sub); topRef?.current?.scrollIntoView(); }} variant="ghost" style={{ padding:"8px 16px" }}>👁 Просмотр</Btn>
-                      <Btn onClick={() => doExport(sub)} variant="yellow" disabled={exp === sub.id} style={{ padding:"8px 16px" }}>
-                        {exp === sub.id ? "⏳" : "📥 Word"}
-                      </Btn>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-        }
-      </div>
-    </div>
-  );
 }
+
 
 // ─── App root ─────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://nhlpsjwremebrbrivfbe.supabase.co";
@@ -682,7 +684,7 @@ export default function App() {
         </div>
       )}
       {view === "client"     && <ClientForm onSubmit={handleSubmit} />}
-      {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); loadSubmissions(); }} />}
+      {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }} />}
       {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} />}
     </div>
   );
