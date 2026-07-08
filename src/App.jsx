@@ -496,9 +496,14 @@ function AdminLogin({ onLogin }) {
 }
 
 // ─── Admin panel ──────────────────────────────────────────────────────────────
-function AdminPanel({ submissions, loading, onRefresh }) {
+const DELETE_PASSWORD = "3222";
+
+function AdminPanel({ submissions, loading, onRefresh, onDelete }) {
   const [sel, setSel] = useState(null);
   const topRef = useRef(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletePw, setDeletePw] = useState("");
+  const [deleteErr, setDeleteErr] = useState(false);
 
   const safeSubs = (() => {
     try { return Array.isArray(submissions) ? submissions : []; }
@@ -509,15 +514,82 @@ function AdminPanel({ submissions, loading, onRefresh }) {
     try { exportToWord(sub); } catch(e) { alert("Ошибка экспорта"); }
   };
 
+  const confirmDelete = (sub) => {
+    setDeleteTarget(sub);
+    setDeletePw("");
+    setDeleteErr(false);
+  };
+
+  const executeDelete = () => {
+    if (deletePw === DELETE_PASSWORD) {
+      onDelete(deleteTarget);
+      setDeleteTarget(null);
+      setDeletePw("");
+      if (sel && sel.id === deleteTarget.id) setSel(null);
+    } else {
+      setDeleteErr(true);
+    }
+  };
+
+  // Delete confirmation modal
+  const DeleteModal = deleteTarget ? (
+    <div style={{
+      position:"fixed", top:0, left:0, right:0, bottom:0,
+      background:"rgba(0,0,0,0.6)", zIndex:1000,
+      display:"flex", alignItems:"center", justifyContent:"center", padding:20
+    }}>
+      <div style={{
+        background:"#fff", borderRadius:16, padding:"36px 32px",
+        maxWidth:400, width:"100%", textAlign:"center",
+        boxShadow:"0 8px 40px rgba(0,0,0,0.3)"
+      }}>
+        <div style={{ fontSize:48, marginBottom:12 }}>🗑️</div>
+        <h3 style={{ fontSize:18, color:"#1a2a2a", marginBottom:8 }}>Удалить анкету?</h3>
+        <p style={{ fontSize:13, color:"#666", marginBottom:20 }}>
+          <b>{deleteTarget.answers && deleteTarget.answers["s0_1"] ? deleteTarget.answers["s0_1"] : "Без имени"}</b><br/>
+          Это действие нельзя отменить.
+        </p>
+        <input
+          type="password"
+          placeholder="Введите пароль для удаления"
+          value={deletePw}
+          onChange={e => { setDeletePw(e.target.value); setDeleteErr(false); }}
+          onKeyDown={e => e.key === "Enter" && executeDelete()}
+          style={{
+            width:"100%", border:`1.5px solid ${deleteErr ? "#e05050" : "#e2e8f0"}`,
+            borderRadius:8, padding:"10px 14px", fontSize:14,
+            textAlign:"center", outline:"none", marginBottom:8, boxSizing:"border-box"
+          }}
+          autoFocus
+        />
+        {deleteErr && <p style={{ color:"#e05050", fontSize:13, margin:"0 0 12px" }}>Неверный пароль</p>}
+        <div style={{ display:"flex", gap:10, marginTop:4 }}>
+          <button
+            onClick={() => { setDeleteTarget(null); setDeletePw(""); setDeleteErr(false); }}
+            style={{ flex:1, padding:"10px", borderRadius:8, border:"1.5px solid #e2e8f0", background:"#f4f6f8", cursor:"pointer", fontSize:14, fontWeight:600 }}
+          >Отмена</button>
+          <button
+            onClick={executeDelete}
+            style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:"#e84545", color:"#fff", cursor:"pointer", fontSize:14, fontWeight:700 }}
+          >Удалить</button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   if (sel) {
     let secList = [];
     try { secList = SECTIONS; } catch(e) {}
     return (
       <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
+        {DeleteModal}
         <div ref={topRef} />
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, gap:10, flexWrap:"wrap" }}>
           <button onClick={() => setSel(null)} style={{ padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background: C.grayLight, color: C.gray, transition:"all .2s" }}>← Все анкеты</button>
-          <button onClick={() => doExport(sel)} style={{ padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background: C.yellow, color: C.dark, transition:"all .2s" }}>📄 Открыть для печати</button>
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={() => doExport(sel)} style={{ padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background: C.yellow, color: C.dark, transition:"all .2s" }}>📄 Открыть для печати</button>
+            <button onClick={() => confirmDelete(sel)} style={{ padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background:"#fee2e2", color:"#e84545", transition:"all .2s" }}>🗑️ Удалить</button>
+          </div>
         </div>
         <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
           <h2 style={{ fontSize:20, color:C.dark, marginBottom:4 }}>{sel.answers && sel.answers["s0_1"] ? sel.answers["s0_1"] : "—"}</h2>
@@ -547,6 +619,7 @@ function AdminPanel({ submissions, loading, onRefresh }) {
 
   return (
     <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
+      {DeleteModal}
       <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:24 }}>
           <Logo size={44} />
@@ -593,9 +666,10 @@ function AdminPanel({ submissions, loading, onRefresh }) {
                     <div style={{ height:"100%", width:`${pct}%`, background:C.teal, borderRadius:4 }} />
                   </div>
                 </div>
-                <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+                <div style={{ display:"flex", gap:8, flexShrink:0, flexWrap:"wrap" }}>
                   <button onClick={() => { setSel(sub); topRef?.current?.scrollIntoView(); }} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background: C.grayLight, color: C.gray }}>👁 Просмотр</button>
                   <button onClick={() => doExport(sub)} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background: C.yellow, color: C.dark }}>📄 PDF</button>
+                  <button onClick={() => confirmDelete(sub)} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:"#fee2e2", color:"#e84545" }}>🗑️</button>
                 </div>
               </div>
             </div>
@@ -683,6 +757,15 @@ export default function App() {
     setTimeout(() => setSaveStatus(null), 3000);
   };
 
+  const handleDelete = async (sub) => {
+    try {
+      await sbFetch(`/rest/v1/ankety?id=eq.${sub.id}`, { method: "DELETE", prefer: "return=minimal" });
+      setSubmissions(prev => prev.filter(s => s.id !== sub.id));
+    } catch(e) {
+      console.error("Delete error:", e);
+    }
+  };
+
   return (
     <div style={{ minHeight:"100vh", background: C.grayLight, fontFamily:"'Segoe UI', Arial, sans-serif" }}>
       <Header
@@ -706,7 +789,7 @@ export default function App() {
       )}
       {view === "client"     && <ClientForm onSubmit={handleSubmit} />}
       {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }} />}
-      {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} />}
+      {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} onDelete={handleDelete} />}
     </div>
   );
 }
