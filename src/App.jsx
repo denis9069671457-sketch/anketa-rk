@@ -480,6 +480,8 @@ function AdminPanel({ submissions, loading, onRefresh }) {
   const [exp, setExp] = useState(null);
   const topRef = useRef(null);
 
+  const safeSubs = Array.isArray(submissions) ? submissions : [];
+
   const doExport = (sub) => { exportToWord(sub); };
 
   if (sel) return (
@@ -532,7 +534,7 @@ function AdminPanel({ submissions, loading, onRefresh }) {
           <Logo size={44} />
           <div>
             <h2 style={{ margin:0, fontSize:20, color: C.dark }}>Панель администратора</h2>
-            <p style={{ margin:"2px 0 0", fontSize:13, color: C.grayMid }}>Всего анкет: {submissions.length} · общая база для всех администраторов</p>
+            <p style={{ margin:"2px 0 0", fontSize:13, color: C.grayMid }}>Всего анкет: {safeSubs.length} · общая база для всех администраторов</p>
           </div>
           <button
             onClick={onRefresh}
@@ -548,13 +550,13 @@ function AdminPanel({ submissions, loading, onRefresh }) {
             <p>Загружаем анкеты из Google Sheets...</p>
           </div>
         )}
-        {submissions.length === 0
+        {safeSubs.length === 0
           ? <div style={{ textAlign:"center", padding:"60px 0", color:"#bbb" }}>
               <div style={{ fontSize:48, marginBottom:12 }}>📋</div>
               <p>Пока нет заполненных анкет</p>
             </div>
-          : submissions.map(sub => {
-              const f = ALL_FIELDS.filter(fi => sub.answers[fi.id]).length;
+          : safeSubs.map(sub => {
+              const f = sub && sub.answers ? ALL_FIELDS.filter(fi => sub.answers[fi.id]).length : 0;
               const p = Math.round(f / TOTAL * 100);
               return (
                 <div key={sub.id} style={{ background: C.grayLight, borderRadius:12, padding:"16px 20px", marginBottom:12, border:`1px solid ${C.grayBorder}` }}>
@@ -637,15 +639,24 @@ export default function App() {
 
   const loadSubmissions = async () => {
     setLoading(true);
-    const subs = await loadFromSheets();
-    setSubmissions(subs);
+    try {
+      const subs = await loadFromSheets();
+      setSubmissions(Array.isArray(subs) ? subs : []);
+    } catch(e) {
+      console.error("Load error:", e);
+      setSubmissions([]);
+    }
     setLoading(false);
   };
 
   const handleSubmit = async (sub) => {
     setSaveStatus("saving");
-    const ok = await sendToSheets(sub);
-    setSaveStatus(ok ? "ok" : "error");
+    try {
+      const ok = await sendToSheets(sub);
+      setSaveStatus(ok ? "ok" : "error");
+    } catch(e) {
+      setSaveStatus("error");
+    }
     setTimeout(() => setSaveStatus(null), 3000);
   };
 
