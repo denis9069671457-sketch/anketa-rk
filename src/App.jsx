@@ -299,7 +299,7 @@ function Header({ view, setView, auth, onLogout }) {
       <div style={{ maxWidth:900, margin:"0 auto", padding:"0 20px", height:64, display:"flex", alignItems:"center", gap:16 }}>
         <Logo size={44} />
         <div style={{ marginRight:"auto" }}>
-          <div style={{ color: C.yellow, fontWeight:700, fontSize:15, letterSpacing:0.5 }}>РК Центр</div>
+          <div style={{ color: C.yellow, fontWeight:700, fontSize:15, letterSpacing:0.5 }}> Центр Рината Каримова</div>
           <div style={{ color: C.teal, fontSize:11, marginTop:-1 }}>Анкета М.И. Лынской</div>
         </div>
         {nav.map(n => (
