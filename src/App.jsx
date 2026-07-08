@@ -495,8 +495,8 @@ function AdminPanel({ submissions, loading, onRefresh }) {
       <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
         <div ref={topRef} />
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-          <button onClick={() => setSel(null)} style={{ ...S.btn("ghost") }}>← Все анкеты</button>
-          <button onClick={() => doExport(sel)} style={{ ...S.btn("yellow") }}>📄 Открыть для печати</button>
+          <button onClick={() => setSel(null)} style={{ padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background: C.grayLight, color: C.gray, transition:"all .2s" }}>← Все анкеты</button>
+          <button onClick={() => doExport(sel)} style={{ padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background: C.yellow, color: C.dark, transition:"all .2s" }}>📄 Открыть для печати</button>
         </div>
         <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
           <h2 style={{ fontSize:20, color:C.dark, marginBottom:4 }}>{sel.answers && sel.answers["s0_1"] ? sel.answers["s0_1"] : "—"}</h2>
@@ -533,7 +533,7 @@ function AdminPanel({ submissions, loading, onRefresh }) {
             <h2 style={{ margin:0, fontSize:20, color:C.dark }}>Панель администратора</h2>
             <p style={{ margin:"2px 0 0", fontSize:13, color:C.grayMid }}>Всего анкет: {safeSubs.length} · общая база для всех администраторов</p>
           </div>
-          <button onClick={onRefresh} disabled={loading} style={{ ...S.btn("ghost"), marginLeft:"auto", fontSize:12, padding:"8px 16px" }}>
+          <button onClick={onRefresh} disabled={loading} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, background: C.grayLight, color: C.gray, marginLeft:"auto" }}>
             {loading ? "⏳ Загружаем..." : "↻ Обновить"}
           </button>
         </div>
@@ -573,8 +573,8 @@ function AdminPanel({ submissions, loading, onRefresh }) {
                   </div>
                 </div>
                 <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-                  <button onClick={() => { setSel(sub); topRef?.current?.scrollIntoView(); }} style={{ ...S.btn("ghost"), padding:"8px 16px" }}>👁 Просмотр</button>
-                  <button onClick={() => doExport(sub)} style={{ ...S.btn("yellow"), padding:"8px 16px" }}>📄 PDF</button>
+                  <button onClick={() => { setSel(sub); topRef?.current?.scrollIntoView(); }} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background: C.grayLight, color: C.gray }}>👁 Просмотр</button>
+                  <button onClick={() => doExport(sub)} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background: C.yellow, color: C.dark }}>📄 PDF</button>
                 </div>
               </div>
             </div>
