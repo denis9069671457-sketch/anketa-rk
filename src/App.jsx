@@ -189,48 +189,69 @@ const ADMIN_PASSWORD = "3211";
 
 // ─── Word export ──────────────────────────────────────────────────────────────
 function exportToWord(submission) {
-  const esc = (t) => (t||"—").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const esc = (t) => String(t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
   let html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"/>
   <style>
-    body { font-family: Arial, sans-serif; font-size: 13px; margin: 32px; color: #111; max-width: 800px; }
-    h1 { font-size: 22px; color: #1a2a2a; border-bottom: 3px solid #2ab5b5; padding-bottom: 8px; margin-bottom: 4px; }
-    .subtitle { font-size: 13px; color: #666; margin-bottom: 6px; font-style: italic; }
-    .meta { font-size: 12px; color: #888; margin-bottom: 24px; }
-    h2 { font-size: 15px; color: #1a8a8a; margin-top: 28px; margin-bottom: 10px; border-bottom: 1px solid #cceaea; padding-bottom: 4px; }
-    .q-block { margin-bottom: 12px; }
-    .q-label { font-size: 12px; color: #555; margin-bottom: 3px; }
-    .q-answer { font-size: 13px; color: #111; padding: 6px 10px; background: #f4fefe; border-left: 3px solid #2ab5b5; }
-    .q-empty { color: #bbb; font-style: italic; }
-    .top-bar { position: fixed; top: 0; left: 0; right: 0; background: #1a2a2a; padding: 12px 20px; display: flex; gap: 12px; align-items: center; z-index: 99; }
+    @media print {
+      .top-bar { display: none !important; }
+      body { margin: 10mm 15mm; }
+      table { page-break-inside: auto; }
+      tr { page-break-inside: avoid; page-break-after: auto; }
+      h2 { page-break-after: avoid; }
+    }
+    body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px 30px; color: #111; }
+    .top-bar { position: fixed; top: 0; left: 0; right: 0; background: #1a2a2a; padding: 10px 20px; display: flex; gap: 12px; align-items: center; z-index: 99; }
     .top-bar span { color: #2ab5b5; font-weight: bold; font-size: 14px; flex: 1; }
-    .btn-print { background: #2ab5b5; color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: bold; cursor: pointer; }
-    .btn-hint { background: #f5c842; color: #1a2a2a; border: none; border-radius: 8px; padding: 10px 16px; font-size: 12px; font-weight: bold; cursor: default; }
-    .content { margin-top: 64px; }
-    @media print { .top-bar { display: none; } .content { margin-top: 0; } }
+    .btn-print { background: #2ab5b5; color: white; border: none; border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: bold; cursor: pointer; }
+    .btn-hint { background: #f5c842; color: #1a2a2a; border: none; border-radius: 8px; padding: 8px 14px; font-size: 11px; font-weight: bold; }
+    .content { margin-top: 52px; }
+    .title-block { text-align: center; margin-bottom: 16px; }
+    .title-block h1 { font-size: 16px; font-weight: bold; margin: 0 0 4px; }
+    .title-block p { font-size: 12px; color: #555; margin: 0; }
+    .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+    .meta-table td { border: 1px solid #999; padding: 4px 8px; font-size: 12px; }
+    .meta-table td:first-child { width: 55%; background: #f5f5f5; font-weight: 500; }
+    h2 { font-size: 13px; font-weight: bold; text-align: center; background: #e8f5f5; border: 1px solid #aaa; padding: 5px; margin: 10px 0 0; }
+    .section-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+    .section-table td { border: 1px solid #999; border-top: none; padding: 5px 8px; font-size: 12px; vertical-align: top; }
+    .section-table tr:first-child td { border-top: none; }
+    .section-table .q-cell { width: 55%; background: #fafafa; }
+    .section-table .a-cell { width: 45%; }
+    .q-num { color: #888; font-size: 10px; margin-right: 4px; }
+    .empty { color: #bbb; font-style: italic; }
   </style></head><body>
   <div class="top-bar">
-    <span>📋 Анкета: ${esc(submission.answers["s0_1"] || "—")}</span>
-    <button class="btn-print" onclick="window.print()">🖨️ Печать / Сохранить PDF</button>
-    <div class="btn-hint">На iPad: Печать → Сохранить в Файлы</div>
+    <span>Анкета: ${esc(submission.answers["s0_1"] || "—")}</span>
+    <button class="btn-print" onclick="window.print()">🖨️ Печать / PDF</button>
+    <span class="btn-hint">iPad: Печать → Сохранить в Файлы</span>
   </div>
   <div class="content">
-  <h1>Анкета по сбору анамнеза</h1>
-  <div class="subtitle">По стандарту М.И. Лынской</div>
-  <div class="meta">
-    Имя ребёнка: <b>${esc(submission.answers["s0_1"])}</b> &nbsp;·&nbsp;
-    Дата заполнения: <b>${new Date(submission.date).toLocaleString("ru-RU")}</b>
-  </div>`;
+    <div class="title-block">
+      <h1>Анкета по сбору анамнеза по стандарту М.И. Лынской</h1>
+      <p>Дата заполнения: ${new Date(submission.date).toLocaleString("ru-RU")}</p>
+    </div>`;
 
-  SECTIONS.forEach(sec => {
-    html += `<h2>${sec.icon} ${esc(sec.title)}</h2>`;
+  // Шапка с основными данными
+  html += `<table class="meta-table">
+    <tr><td>Фамилия, имя ребенка</td><td>${esc(submission.answers["s0_1"])}</td></tr>
+    <tr><td>Дата рождения ребенка</td><td>${esc(submission.answers["s0_2"])}</td></tr>
+    <tr><td>Возраст на момент прохождения диагностики</td><td>${esc(submission.answers["s0_3"])}</td></tr>
+    <tr><td>Город проживания</td><td>${esc(submission.answers["s0_4"])}</td></tr>
+  </table>`;
+
+  // Разделы — пропускаем s0 так как уже вывели
+  SECTIONS.slice(1).forEach(sec => {
+    html += `<h2>${sec.title}</h2>`;
+    html += `<table class="section-table">`;
     sec.fields.forEach((f, i) => {
       const ans = submission.answers[f.id];
-      html += `<div class="q-block">
-        <div class="q-label">${i+1}. ${esc(f.label)}</div>
-        <div class="q-answer${ans ? "" : " q-empty"}">${esc(ans)}</div>
-      </div>`;
+      html += `<tr>
+        <td class="q-cell"><span class="q-num">${i+1}.</span>${esc(f.label)}</td>
+        <td class="a-cell${ans ? "" : " empty"}">${ans ? esc(ans) : ""}</td>
+      </tr>`;
     });
+    html += `</table>`;
   });
 
   html += `</div></body></html>`;
