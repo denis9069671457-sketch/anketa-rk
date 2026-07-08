@@ -299,8 +299,8 @@ function Header({ view, setView, auth, onLogout }) {
       <div style={{ maxWidth:900, margin:"0 auto", padding:"0 20px", height:64, display:"flex", alignItems:"center", gap:16 }}>
         <Logo size={44} />
         <div style={{ marginRight:"auto" }}>
-          <div style={{ color: C.yellow, fontWeight:700, fontSize:15, letterSpacing:0.5 }}> Центр Рината Каримова </div>
-          <div style={{ color: C.teal, fontSize:11, marginTop:-1 }}> </div>
+          <div style={{ color: C.yellow, fontWeight:700, fontSize:15, letterSpacing:0.5 }}>РК Центр</div>
+          <div style={{ color: C.teal, fontSize:11, marginTop:-1 }}>Анкета М.И. Лынской</div>
         </div>
         {nav.map(n => (
           <button key={n.key} onClick={()=> n.key==="admin" && !auth ? setView("adminLogin") : setView(n.key)}
@@ -475,7 +475,7 @@ function AdminLogin({ onLogin }) {
 }
 
 // ─── Admin panel ──────────────────────────────────────────────────────────────
-function AdminPanel({ submissions }) {
+function AdminPanel({ submissions, loading, onRefresh }) {
   const [sel, setSel] = useState(null);
   const [exp, setExp] = useState(null);
   const topRef = useRef(null);
@@ -532,9 +532,22 @@ function AdminPanel({ submissions }) {
           <Logo size={44} />
           <div>
             <h2 style={{ margin:0, fontSize:20, color: C.dark }}>Панель администратора</h2>
-            <p style={{ margin:"2px 0 0", fontSize:13, color: C.grayMid }}>Всего анкет: {submissions.length}</p>
+            <p style={{ margin:"2px 0 0", fontSize:13, color: C.grayMid }}>Всего анкет: {submissions.length} · данные из Google Sheets</p>
           </div>
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            style={{ ...S.btn("ghost"), marginLeft:"auto", fontSize:12, padding:"8px 16px" }}
+          >
+            {loading ? "⏳ Загружаем..." : "↻ Обновить"}
+          </button>
         </div>
+        {loading && (
+          <div style={{ textAlign:"center", padding:"40px 0", color: C.grayMid }}>
+            <div style={{ fontSize:32, marginBottom:12 }}>⏳</div>
+            <p>Загружаем анкеты из Google Sheets...</p>
+          </div>
+        )}
         {submissions.length === 0
           ? <div style={{ textAlign:"center", padding:"60px 0", color:"#bbb" }}>
               <div style={{ fontSize:48, marginBottom:12 }}>📋</div>
@@ -570,16 +583,54 @@ function AdminPanel({ submissions }) {
 }
 
 // ─── App root ─────────────────────────────────────────────────────────────────
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxMfMDlz3SER_j8NtPlL3ZXsycAtC6r-aDymBlmzNIvDlptXvRgA-tqkVJc1QCbIgzN/exec";
+
+async function sendToSheets(submission) {
+  try {
+    await fetch(SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(submission),
+    });
+    return true;
+  } catch(e) {
+    console.error("Sheets error:", e);
+    return false;
+  }
+}
+
+async function loadFromSheets() {
+  try {
+    const res = await fetch(SCRIPT_URL + "?action=get");
+    const data = await res.json();
+    return data.submissions || [];
+  } catch(e) {
+    console.error("Load error:", e);
+    return [];
+  }
+}
+
 export default function App() {
   const [view, setView] = useState("client");
   const [auth, setAuth] = useState(false);
-  const [submissions, setSubmissions] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("rk_anketa") || "[]"); } catch { return []; }
-  });
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(null);
 
-  useEffect(() => { localStorage.setItem("rk_anketa", JSON.stringify(submissions)); }, [submissions]);
+  const loadSubmissions = async () => {
+    setLoading(true);
+    const subs = await loadFromSheets();
+    setSubmissions(subs);
+    setLoading(false);
+  };
 
-  const handleSubmit = sub => setSubmissions(p => [sub, ...p]);
+  const handleSubmit = async (sub) => {
+    setSaveStatus("saving");
+    const ok = await sendToSheets(sub);
+    setSaveStatus(ok ? "ok" : "error");
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
 
   return (
     <div style={{ minHeight:"100vh", background: C.grayLight, fontFamily:"'Segoe UI', Arial, sans-serif" }}>
@@ -587,9 +638,24 @@ export default function App() {
         view={view} setView={setView} auth={auth}
         onLogout={() => { setAuth(false); setView("client"); }}
       />
+      {saveStatus === "saving" && (
+        <div style={{ background:"#f5c842", color:"#1a2a2a", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>
+          ⏳ Сохраняем анкету...
+        </div>
+      )}
+      {saveStatus === "ok" && (
+        <div style={{ background:"#27ae60", color:"#fff", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>
+          ✅ Анкета успешно сохранена в Google Sheets!
+        </div>
+      )}
+      {saveStatus === "error" && (
+        <div style={{ background:"#e84545", color:"#fff", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>
+          ⚠️ Ошибка сохранения. Проверьте интернет.
+        </div>
+      )}
       {view === "client"     && <ClientForm onSubmit={handleSubmit} />}
-      {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }} />}
-      {view === "admin" && auth && <AdminPanel submissions={submissions} />}
+      {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); loadSubmissions(); }} />}
+      {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} />}
     </div>
   );
 }
