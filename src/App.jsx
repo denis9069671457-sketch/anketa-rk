@@ -188,42 +188,58 @@ const TOTAL = ALL_FIELDS.length;
 const ADMIN_PASSWORD = "3211";
 
 // ─── Word export ──────────────────────────────────────────────────────────────
-async function exportToWord(submission) {
-  if (!window.docx) {
-    await new Promise((res, rej) => {
-      const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js";
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
-  }
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel } = window.docx;
-  const children = [
-    new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: "Анкета по сбору анамнеза", bold: true, size: 40 })] }),
-    new Paragraph({ children: [new TextRun({ text: "По стандарту М.И. Лынской", size: 22, italics: true, color: "666666" })] }),
-    new Paragraph({ children: [new TextRun({ text: `Дата заполнения: ${new Date(submission.date).toLocaleString("ru-RU")}`, size: 20, color: "888888" })] }),
-    new Paragraph({ children: [new TextRun({ text: "" })] }),
-  ];
-  for (const sec of SECTIONS) {
-    children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: `${sec.icon}  ${sec.title}`, bold: true, size: 28 })], spacing: { before: 400 } }));
+function exportToWord(submission) {
+  const esc = (t) => (t||"—").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+  let html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"/>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; margin: 32px; color: #111; max-width: 800px; }
+    h1 { font-size: 22px; color: #1a2a2a; border-bottom: 3px solid #2ab5b5; padding-bottom: 8px; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #666; margin-bottom: 6px; font-style: italic; }
+    .meta { font-size: 12px; color: #888; margin-bottom: 24px; }
+    h2 { font-size: 15px; color: #1a8a8a; margin-top: 28px; margin-bottom: 10px; border-bottom: 1px solid #cceaea; padding-bottom: 4px; }
+    .q-block { margin-bottom: 12px; }
+    .q-label { font-size: 12px; color: #555; margin-bottom: 3px; }
+    .q-answer { font-size: 13px; color: #111; padding: 6px 10px; background: #f4fefe; border-left: 3px solid #2ab5b5; }
+    .q-empty { color: #bbb; font-style: italic; }
+    .top-bar { position: fixed; top: 0; left: 0; right: 0; background: #1a2a2a; padding: 12px 20px; display: flex; gap: 12px; align-items: center; z-index: 99; }
+    .top-bar span { color: #2ab5b5; font-weight: bold; font-size: 14px; flex: 1; }
+    .btn-print { background: #2ab5b5; color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: bold; cursor: pointer; }
+    .btn-hint { background: #f5c842; color: #1a2a2a; border: none; border-radius: 8px; padding: 10px 16px; font-size: 12px; font-weight: bold; cursor: default; }
+    .content { margin-top: 64px; }
+    @media print { .top-bar { display: none; } .content { margin-top: 0; } }
+  </style></head><body>
+  <div class="top-bar">
+    <span>📋 Анкета: ${esc(submission.answers["s0_1"] || "—")}</span>
+    <button class="btn-print" onclick="window.print()">🖨️ Печать / Сохранить PDF</button>
+    <div class="btn-hint">На iPad: Печать → Сохранить в Файлы</div>
+  </div>
+  <div class="content">
+  <h1>Анкета по сбору анамнеза</h1>
+  <div class="subtitle">По стандарту М.И. Лынской</div>
+  <div class="meta">
+    Имя ребёнка: <b>${esc(submission.answers["s0_1"])}</b> &nbsp;·&nbsp;
+    Дата заполнения: <b>${new Date(submission.date).toLocaleString("ru-RU")}</b>
+  </div>`;
+
+  SECTIONS.forEach(sec => {
+    html += `<h2>${sec.icon} ${esc(sec.title)}</h2>`;
     sec.fields.forEach((f, i) => {
-      const ans = submission.answers[f.id] || "—";
-      children.push(
-        new Paragraph({ children: [new TextRun({ text: `${i+1}. ${f.label}`, bold: true, size: 20 })], spacing: { before: 200 } }),
-        new Paragraph({ children: [new TextRun({ text: ans, size: 20 })], indent: { left: 360 }, spacing: { after: 80 } }),
-      );
+      const ans = submission.answers[f.id];
+      html += `<div class="q-block">
+        <div class="q-label">${i+1}. ${esc(f.label)}</div>
+        <div class="q-answer${ans ? "" : " q-empty"}">${esc(ans)}</div>
+      </div>`;
     });
-  }
-  const doc = new Document({ sections: [{ children }] });
-  const buf = await Packer.toBuffer(doc);
-  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  });
+
+  html += `</div></body></html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  const name = (submission.answers["s0_1"] || "klient").replace(/\s+/g, "_");
-  a.download = `anketa_${name}.docx`;
-  a.click(); URL.revokeObjectURL(url);
+  window.open(url, "_blank");
 }
+
 
 // ─── Logo component ───────────────────────────────────────────────────────────
 function Logo({ size = 48 }) {
@@ -472,7 +488,7 @@ function AdminPanel({ submissions }) {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
         <Btn onClick={() => setSel(null)} variant="ghost">← Все анкеты</Btn>
         <Btn onClick={() => doExport(sel)} variant="yellow" disabled={exp === sel.id}>
-          {exp === sel.id ? "⏳ Генерация..." : "📥 Скачать Word (.doc)"}
+          {exp === sel.id ? "⏳ Открываем..." : "📄 Открыть для печати / PDF"}
         </Btn>
       </div>
       <div style={{ background: C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
