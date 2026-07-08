@@ -300,7 +300,7 @@ function Header({ view, setView, auth, onLogout }) {
         <Logo size={44} />
         <div style={{ marginRight:"auto" }}>
           <div style={{ color: C.yellow, fontWeight:700, fontSize:15, letterSpacing:0.5 }}> Центр Рината Каримова </div>
-          <div style={{ color: C.teal, fontSize:11, marginTop:-1 }}>Анкета М.И. Лынской</div>
+          <div style={{ color: C.teal, fontSize:11, marginTop:-1 }}> </div>
         </div>
         {nav.map(n => (
           <button key={n.key} onClick={()=> n.key==="admin" && !auth ? setView("adminLogin") : setView(n.key)}
