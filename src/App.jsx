@@ -338,6 +338,120 @@ function Header({ view, setView, auth, onLogout }) {
   );
 }
 
+// ─── Consent screen ──────────────────────────────────────────────────────────
+function ConsentScreen({ onAccept }) {
+  const [checked, setChecked] = useState(false);
+  const [parentName, setParentName] = useState("");
+  const [parentNameErr, setParentNameErr] = useState(false);
+
+  const handleAccept = () => {
+    if (!parentName.trim()) { setParentNameErr(true); return; }
+    if (!checked) return;
+    onAccept(parentName.trim());
+  };
+
+  return (
+    <div style={{ maxWidth:780, margin:"0 auto", padding:"40px 20px" }}>
+      <div style={{ background: C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", overflow:"hidden" }}>
+        <div style={{ background:`linear-gradient(135deg, ${C.dark} 0%, #1a3a3a 100%)`, padding:"28px 36px", display:"flex", alignItems:"center", gap:20 }}>
+          <Logo size={56} />
+          <div>
+            <h1 style={{ color: C.yellow, fontSize:20, margin:"0 0 4px", fontWeight:800 }}>Согласие на обработку персональных данных</h1>
+            <p style={{ color: C.teal, fontSize:13, margin:0 }}>В соответствии с Федеральным законом № 152-ФЗ</p>
+          </div>
+        </div>
+        <div style={{ padding:"28px 36px" }}>
+
+          {/* Реквизиты оператора */}
+          <div style={{ background: C.tealLight, borderRadius:10, padding:"12px 18px", marginBottom:20, fontSize:12, color: C.gray, lineHeight:1.8 }}>
+            <b style={{ color: C.tealDark }}>Оператор персональных данных:</b><br/>
+            ИП Каримов Ринат Алишерович · ИНН 502239463615<br/>
+            143401, Московская область, г. Красногорск, бульвар Павшинский, д. 3<br/>
+            Руководитель: Каримов Ринат Алишерович
+          </div>
+
+          {/* Текст согласия */}
+          <div style={{
+            background:"#f8fefe", border:`1px solid ${C.tealLight}`,
+            borderRadius:12, padding:"20px 24px", marginBottom:20,
+            maxHeight:320, overflowY:"auto", fontSize:13, color:"#333", lineHeight:1.8
+          }}>
+            <p style={{ fontWeight:700, marginBottom:12, fontSize:14, textAlign:"center" }}>СОГЛАСИЕ НА ОБРАБОТКУ ПЕРСОНАЛЬНЫХ ДАННЫХ</p>
+
+            <p>Я, нижеподписавшийся(-аяся), являясь родителем (законным представителем) несовершеннолетнего ребёнка, в соответствии с требованиями Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных», свободно, своей волей и в своём интересе даю своё согласие <b>ИП Каримов Ринат Алишерович</b> (ИНН 502239463615, 143401, Московская область, г. Красногорск, бульвар Павшинский, д. 3; далее — Оператор) на обработку моих персональных данных и персональных данных моего ребёнка на следующих условиях:</p>
+
+            <p style={{ marginTop:14, fontWeight:600 }}>1. Перечень персональных данных, на обработку которых даётся согласие:</p>
+            <p>фамилия, имя, отчество ребёнка и родителя (законного представителя); дата рождения ребёнка; место проживания; сведения о состоянии здоровья ребёнка; сведения о течении беременности и родах; данные о раннем развитии ребёнка; сведения о семье; иные сведения, указанные в анкете по сбору анамнеза по стандарту М.И. Лынской.</p>
+
+            <p style={{ marginTop:14, fontWeight:600 }}>2. Цели обработки персональных данных:</p>
+            <p>проведение диагностики уровня речевого и психического развития ребёнка; составление индивидуальных рекомендаций и программ коррекции; ведение документации специалистов центра; организация и проведение консультаций специалистов.</p>
+
+            <p style={{ marginTop:14, fontWeight:600 }}>3. Перечень действий с персональными данными:</p>
+            <p>сбор, запись, систематизация, накопление, хранение, уточнение (обновление, изменение), извлечение, использование, обезличивание, блокирование, удаление, уничтожение персональных данных. Обработка осуществляется с использованием средств автоматизации.</p>
+
+            <p style={{ marginTop:14, fontWeight:600 }}>4. Условия обработки:</p>
+            <p>Оператор обязуется не раскрывать персональные данные третьим лицам и не распространять их без согласия субъекта персональных данных, если иное не предусмотрено законодательством Российской Федерации.</p>
+
+            <p style={{ marginTop:14, fontWeight:600 }}>5. Срок действия согласия:</p>
+            <p>Настоящее согласие действует с момента его предоставления и до достижения целей обработки персональных данных либо до момента его отзыва субъектом персональных данных.</p>
+
+            <p style={{ marginTop:14, fontWeight:600 }}>6. Порядок отзыва согласия:</p>
+            <p>Настоящее согласие может быть отозвано путём направления письменного заявления Оператору по адресу: 143401, Московская область, г. Красногорск, бульвар Павшинский, д. 3. После получения отзыва Оператор обязуется прекратить обработку и уничтожить персональные данные в срок, не превышающий 30 (тридцати) дней.</p>
+
+            <p style={{ marginTop:14, fontWeight:600 }}>7. Права субъекта персональных данных:</p>
+            <p>Я уведомлён(а) о своих правах, предусмотренных ст. 14 Федерального закона № 152-ФЗ «О персональных данных», в том числе: право на доступ к своим персональным данным; право требовать их уточнения, блокирования или уничтожения; право на обжалование действий Оператора в уполномоченный орган по защите прав субъектов персональных данных (Роскомнадзор).</p>
+          </div>
+
+          {/* ФИО родителя */}
+          <div style={{ marginBottom:16 }}>
+            <label style={{ display:"block", fontSize:13, fontWeight:600, color: C.dark, marginBottom:6 }}>
+              ФИО родителя (законного представителя) <span style={{ color:"#e84545" }}>*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Например: Иванова Мария Петровна"
+              value={parentName}
+              onChange={e => { setParentName(e.target.value); setParentNameErr(false); }}
+              style={{
+                width:"100%", border:`1.5px solid ${parentNameErr ? "#e84545" : parentName ? C.teal : C.grayBorder}`,
+                borderRadius:8, padding:"11px 14px", fontSize:14, color: C.dark,
+                outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit"
+              }}
+            />
+            {parentNameErr && <p style={{ color:"#e84545", fontSize:12, margin:"4px 0 0" }}>Пожалуйста, укажите ФИО</p>}
+          </div>
+
+          {/* Галочка */}
+          <div
+            onClick={() => setChecked(p => !p)}
+            style={{ display:"flex", alignItems:"flex-start", gap:12, cursor:"pointer", marginBottom:24, padding:"14px 18px", background: checked ? "#e8f8f8" : C.grayLight, borderRadius:10, border:`2px solid ${checked ? C.teal : C.grayBorder}`, transition:"all .2s" }}
+          >
+            <div style={{
+              width:22, height:22, borderRadius:5, border:`2px solid ${checked ? C.teal : "#aaa"}`,
+              background: checked ? C.teal : "#fff", flexShrink:0, marginTop:1,
+              display:"flex", alignItems:"center", justifyContent:"center", transition:"all .2s"
+            }}>
+              {checked && <span style={{ color:"#fff", fontSize:14, fontWeight:900 }}>✓</span>}
+            </div>
+            <p style={{ margin:0, fontSize:13, color:"#333", lineHeight:1.6 }}>
+              Я ознакомился(-ась) с условиями обработки персональных данных и даю своё согласие на обработку персональных данных своих и своего ребёнка в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».
+            </p>
+          </div>
+
+          <Btn
+            onClick={handleAccept}
+            variant="primary"
+            disabled={!checked || !parentName.trim()}
+            style={{ fontSize:15, padding:"13px 36px", opacity: (checked && parentName.trim()) ? 1 : 0.4 }}
+          >
+            Согласен(на) — перейти к анкете →
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Welcome screen ───────────────────────────────────────────────────────────
 function WelcomeScreen({ onStart }) {
   return (
@@ -406,9 +520,10 @@ function SectionBlock({ section, answers, onChange }) {
 
 // ─── Client form ──────────────────────────────────────────────────────────────
 function ClientForm({ onSubmit }) {
-  const [step, setStep] = useState("welcome");
+  const [step, setStep] = useState("consent");
   const [curSec, setCurSec] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [parentName, setParentName] = useState("");
   const topRef = useRef(null);
 
   const filled = ALL_FIELDS.filter(f => answers[f.id]).length;
@@ -416,6 +531,8 @@ function ClientForm({ onSubmit }) {
 
   const handleChange = (id, val) => setAnswers(p => ({ ...p, [id]: val }));
   const goSec = (n) => { setCurSec(n); setTimeout(() => topRef.current?.scrollIntoView({ behavior:"smooth" }), 50); };
+
+  if (step === "consent") return <ConsentScreen onAccept={(name) => { setParentName(name); setStep("welcome"); }} />;
 
   if (step === "done") return (
     <div style={{ maxWidth:600, margin:"60px auto", padding:"0 20px", textAlign:"center" }}>
@@ -469,7 +586,7 @@ function ClientForm({ onSubmit }) {
         <span style={{ fontSize:13, color: C.grayMid }}>Раздел {curSec + 1} из {SECTIONS.length}</span>
         {curSec < SECTIONS.length - 1
           ? <Btn onClick={() => goSec(curSec + 1)} variant="primary">Далее →</Btn>
-          : <Btn onClick={() => { onSubmit({ id: Date.now(), date: new Date().toISOString(), answers }); setStep("done"); }} variant="yellow">✅ Отправить анкету</Btn>
+          : <Btn onClick={() => { onSubmit({ id: Date.now(), date: new Date().toISOString(), answers, parentName }); setStep("done"); }} variant="yellow">✅ Отправить анкету</Btn>
         }
       </div>
     </div>
@@ -593,8 +710,11 @@ function AdminPanel({ submissions, loading, onRefresh, onDelete }) {
         </div>
         <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
           <h2 style={{ fontSize:20, color:C.dark, marginBottom:4 }}>{sel.answers && sel.answers["s0_1"] ? sel.answers["s0_1"] : "—"}</h2>
+          <p style={{ fontSize:13, color:C.grayMid, marginBottom:4 }}>
+            Родитель (законный представитель): <b style={{color:C.dark}}>{sel.parent_name || sel.parentName || "—"}</b>
+          </p>
           <p style={{ fontSize:13, color:C.grayMid, marginBottom:20 }}>
-            Заполнено: {sel.date ? new Date(sel.date).toLocaleString("ru-RU") : "—"}
+            Дата заполнения: {sel.date ? new Date(sel.date).toLocaleString("ru-RU") : "—"}
           </p>
           {secList.map(sec => (
             <div key={sec.id} style={{ marginBottom:24 }}>
@@ -659,6 +779,9 @@ function AdminPanel({ submissions, loading, onRefresh, onDelete }) {
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
                 <div style={{ flex:1 }}>
                   <p style={{ margin:"0 0 2px", fontWeight:700, fontSize:15, color:C.dark }}>{name}</p>
+                  <p style={{ margin:"0 0 2px", fontSize:12, color:C.grayMid }}>
+                    Родитель: {sub.parent_name || sub.parentName || "—"}
+                  </p>
                   <p style={{ margin:"0 0 8px", fontSize:12, color:C.grayMid }}>
                     {city}{city ? " · " : ""}{dateStr} · {filled}/{TOTAL} ({pct}%)
                   </p>
@@ -707,6 +830,7 @@ async function sendToSheets(submission) {
       body: JSON.stringify({
         date: submission.date,
         answers: submission.answers,
+        parent_name: submission.parentName || "",
       }),
     });
     return true;
@@ -759,8 +883,21 @@ export default function App() {
 
   const handleDelete = async (sub) => {
     try {
-      await sbFetch(`/rest/v1/ankety?id=eq.${sub.id}`, { method: "DELETE", prefer: "return=minimal" });
-      setSubmissions(prev => prev.filter(s => s.id !== sub.id));
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/ankety?id=eq.${sub.id}`, {
+        method: "DELETE",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": "Bearer " + SUPABASE_KEY,
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal",
+        },
+      });
+      if (res.ok || res.status === 204) {
+        setSubmissions(prev => prev.filter(s => s.id !== sub.id));
+      } else {
+        const err = await res.text();
+        console.error("Delete failed:", res.status, err);
+      }
     } catch(e) {
       console.error("Delete error:", e);
     }
