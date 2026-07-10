@@ -184,6 +184,66 @@ const SECTIONS = [
   },
 ];
 
+// ─── АНКЕТА СЕМЕЙНО-НАСЛЕДСТВЕННОГО ФОНА ─────────────────────────────────────
+const FAMILY_SECTIONS = [
+  {
+    id:"f0", title:"Общие сведения", icon:"📋", color:"#2ab5b5",
+    fields:[
+      {id:"f0_1", label:"Фамилия, имя ребенка", type:"text"},
+      {id:"f0_2", label:"Дата рождения", type:"text"},
+      {id:"f0_3", label:"Возраст на момент прохождения диагностики (указываются года и месяцы жизни)", type:"text"},
+      {id:"f0_4", label:"Город проживания", type:"text"},
+    ]
+  },
+  {
+    id:"f1", title:"Родственники со стороны матери", icon:"👩", color:"#e8a020",
+    fields:[
+      {id:"f1_1", label:"МАТЬ РЕБЁНКА — Хронические заболевания", type:"textarea"},
+      {id:"f1_2", label:"МАТЬ РЕБЁНКА — Образование / специальность по диплому", type:"text"},
+      {id:"f1_3", label:"МАТЬ РЕБЁНКА — Род деятельности (если предприниматель — укажите сферу)", type:"text"},
+      {id:"f1_4", label:"МАТЬ РЕБЁНКА — Черты характера", type:"textarea"},
+      {id:"f1_5", label:"БРАТЬЯ И СЁСТРЫ РЕБЁНКА ПО МАТЕРИ (заполнить на каждого, в скобках: родной/сводный/двоюродный) — Хронические заболевания", type:"textarea"},
+      {id:"f1_6", label:"БРАТЬЯ И СЁСТРЫ ПО МАТЕРИ — Образование / специальность, род деятельности, черты характера", type:"textarea"},
+      {id:"f1_7", label:"ТЁТЯ/ДЯДЯ РЕБЁНКА (описать каждого) — Хронические заболевания, образование, род деятельности, черты характера", type:"textarea"},
+      {id:"f1_8", label:"БАБУШКА РЕБЁНКА (по матери) — Хронические заболевания, если умерла — возраст и причина смерти, образование, черты характера", type:"textarea"},
+      {id:"f1_9", label:"ДЕДУШКА РЕБЁНКА (по матери) — Хронические заболевания, если умер — возраст и причина смерти, образование, черты характера", type:"textarea"},
+      {id:"f1_10", label:"ПРАБАБУШКА (по матери) — Хронические заболевания, если умерла — возраст и причина смерти, черты характера", type:"textarea"},
+      {id:"f1_11", label:"ПРАДЕДУШКА (по матери) — Хронические заболевания, если умер — возраст и причина смерти, черты характера", type:"textarea"},
+      {id:"f1_12", label:"Опишите, если у кого-либо из ближайших родственников ЭТОЙ ВЕТВИ отмечались: странности поведения, нарушения речи, психиатрические диагнозы, необоснованные перепады настроения, приступы ярости, алкоголизм, эпилепсия, деменция, нарушения интеллекта, трудности при овладении чтением/письмом, аутизм, шизофрения, депрессия, суицид, черепно-мозговые травмы, наркомания, отбывание наказания (уточнить причину)", type:"textarea"},
+      {id:"f1_13", label:"Опишите, если кто-либо из этой ветви был одарён: имеет учёную степень/звание, талантлив в рисовании, музыке, был «ходячей энциклопедией», знает несколько языков и т.п.", type:"textarea"},
+    ]
+  },
+  {
+    id:"f2", title:"Родственники со стороны отца", icon:"👨", color:"#7b5ea7",
+    fields:[
+      {id:"f2_1", label:"ОТЕЦ РЕБЁНКА — Хронические заболевания", type:"textarea"},
+      {id:"f2_2", label:"ОТЕЦ РЕБЁНКА — Образование / специальность по диплому", type:"text"},
+      {id:"f2_3", label:"ОТЕЦ РЕБЁНКА — Род деятельности (если предприниматель — укажите сферу)", type:"text"},
+      {id:"f2_4", label:"ОТЕЦ РЕБЁНКА — Черты характера", type:"textarea"},
+      {id:"f2_5", label:"БРАТЬЯ И СЁСТРЫ РЕБЁНКА ПО ОТЦУ (заполнить на каждого, в скобках: родной/сводный/двоюродный) — Хронические заболевания", type:"textarea"},
+      {id:"f2_6", label:"БРАТЬЯ И СЁСТРЫ ПО ОТЦУ — Образование / специальность, род деятельности, черты характера", type:"textarea"},
+      {id:"f2_7", label:"ТЁТЯ/ДЯДЯ РЕБЁНКА (со стороны отца, описать каждого) — Хронические заболевания, образование, род деятельности, черты характера", type:"textarea"},
+      {id:"f2_8", label:"БАБУШКА РЕБЁНКА (по отцу) — Хронические заболевания, если умерла — возраст и причина смерти, образование, черты характера", type:"textarea"},
+      {id:"f2_9", label:"ДЕДУШКА РЕБЁНКА (по отцу) — Хронические заболевания, если умер — возраст и причина смерти, образование, черты характера", type:"textarea"},
+      {id:"f2_10", label:"ПРАБАБУШКА (по отцу) — Хронические заболевания, если умерла — возраст и причина смерти, черты характера", type:"textarea"},
+      {id:"f2_11", label:"ПРАДЕДУШКА (по отцу) — Хронические заболевания, если умер — возраст и причина смерти, черты характера", type:"textarea"},
+      {id:"f2_12", label:"Опишите, если у кого-либо из ближайших родственников ЭТОЙ ВЕТВИ отмечались: странности поведения, нарушения речи, психиатрические диагнозы, необоснованные перепады настроения, приступы ярости, алкоголизм, эпилепсия, деменция, нарушения интеллекта, трудности при овладении чтением/письмом, аутизм, шизофрения, депрессия, суицид, черепно-мозговые травмы, наркомания, отбывание наказания (уточнить причину)", type:"textarea"},
+      {id:"f2_13", label:"Опишите, если кто-либо из этой ветви был одарён: имеет учёную степень/звание, талантлив в рисовании, музыке, был «ходячей энциклопедией», знает несколько языков и т.п.", type:"textarea"},
+    ]
+  },
+  {
+    id:"f3", title:"Ваш ребёнок", icon:"🧒", color:"#2ab580",
+    fields:[
+      {id:"f3_1", label:"Чем не любит заниматься", type:"textarea"},
+      {id:"f3_2", label:"Любимые занятия", type:"textarea"},
+      {id:"f3_3", label:"Черты характера ребёнка (оставьте подходящее, остальное удалите или зачеркните): излишне педантичный и аккуратный; спокойный, покладистый; гневливый, с/без физической агрессии; обидчивый, подолгу не забывает обиды; с непредсказуемыми необоснованными перепадами настроения; чудаковатый в поведении; преимущественно грустный; преимущественно весёлый; может смеяться без причины; медлительный; чувствительный, ранимый; преувеличивает проблемы; чрезмерно общительный, болтливый; склонен к озорству и вредительству; не оценивает социальную дистанцию со взрослыми; тревожный, пугливый; капризный, плаксивый; не переносит одиночество; замкнутый, отгороженный", type:"textarea"},
+    ]
+  },
+];
+
+const ALL_FAMILY_FIELDS = FAMILY_SECTIONS.flatMap(s => s.fields);
+const FAMILY_TOTAL = ALL_FAMILY_FIELDS.length;
+
 const ALL_FIELDS = SECTIONS.flatMap(s => s.fields);
 const TOTAL = ALL_FIELDS.length;
 const ADMIN_PASSWORD = "3211";
@@ -313,8 +373,9 @@ function Btn({ onClick, variant="primary", disabled, children, style: extra={} }
 // ─── Header ───────────────────────────────────────────────────────────────────
 function Header({ view, setView, auth, onLogout }) {
   const nav = [
-    { key:"client", label:"Анкета" },
-    { key:"admin",  label: auth ? "Администратор" : "🔐 Администратор" },
+    { key:"client", label:"📋 Анкета М.И. Лынской" },
+    { key:"family", label:"🧬 Семейный фон" },
+    { key:"admin",  label: auth ? "👤 Администратор" : "🔐 Администратор" },
   ];
   return (
     <header style={{ background: C.dark, borderBottom:`3px solid ${C.teal}`, position:"sticky", top:0, zIndex:100 }}>
@@ -329,6 +390,7 @@ function Header({ view, setView, auth, onLogout }) {
             style={{ padding:"7px 18px", borderRadius:20, border:"none", cursor:"pointer", fontSize:13, fontWeight:600,
               background: view===n.key || (n.key==="admin" && view==="adminLogin") ? C.teal : "rgba(255,255,255,0.08)",
               color: view===n.key || (n.key==="admin" && view==="adminLogin") ? "#fff" : "rgba(255,255,255,0.65)",
+              fontSize: n.key==="client" || n.key==="family" ? 12 : 13,
               transition:"all .2s" }}>{n.label}</button>
         ))}
         {auth && view==="admin" && (
@@ -594,6 +656,76 @@ function ClientForm({ onSubmit }) {
   );
 }
 
+// ─── Family Form ─────────────────────────────────────────────────────────────
+function FamilyForm({ onSubmit }) {
+  const [step, setStep] = useState("consent");
+  const [curSec, setCurSec] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [parentName, setParentName] = useState("");
+  const topRef = useRef(null);
+
+  const filled = ALL_FAMILY_FIELDS.filter(f => answers[f.id]).length;
+  const pct = Math.round(filled / FAMILY_TOTAL * 100);
+  const handleChange = (id, val) => setAnswers(p => ({ ...p, [id]: val }));
+  const goSec = (n) => { setCurSec(n); setTimeout(() => topRef.current?.scrollIntoView({ behavior:"smooth" }), 50); };
+
+  if (step === "consent") return <ConsentScreen onAccept={(name) => { setParentName(name); setStep("form"); }} />;
+
+  if (step === "done") return (
+    <div style={{ maxWidth:600, margin:"60px auto", padding:"0 20px", textAlign:"center" }}>
+      <div style={{ background: C.white, borderRadius:20, padding:"60px 40px", boxShadow:"0 4px 24px rgba(42,181,181,0.12)" }}>
+        <Logo size={80} />
+        <div style={{ fontSize:56, marginBottom:16, marginTop:16 }}>✅</div>
+        <h2 style={{ color: C.dark, fontSize:24, marginBottom:10 }}>Анкета отправлена!</h2>
+        <p style={{ color: C.grayMid, fontSize:15 }}>Спасибо! Ваши данные успешно переданы специалисту.</p>
+      </div>
+    </div>
+  );
+
+  const sec = FAMILY_SECTIONS[curSec];
+
+  return (
+    <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
+      <div ref={topRef} />
+      <div style={{ background: C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"20px 24px", marginBottom:20 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+          <span style={{ fontWeight:700, color: C.dark, fontSize:14 }}>Общий прогресс</span>
+          <span style={{ color: C.teal, fontWeight:700, fontSize:14 }}>{pct}% · {filled}/{FAMILY_TOTAL}</span>
+        </div>
+        <ProgressBar pct={pct} color={`linear-gradient(90deg, ${C.teal}, ${C.yellow})`} height={8} />
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:14 }}>
+          {FAMILY_SECTIONS.map((s, i) => {
+            const sf = s.fields.filter(f => answers[f.id]).length;
+            const done = sf === s.fields.length;
+            const active = curSec === i;
+            return (
+              <button key={s.id} onClick={() => goSec(i)} style={{
+                padding:"5px 12px", borderRadius:20, cursor:"pointer", fontSize:12, fontWeight:600, transition:"all .2s",
+                border: `2px solid ${active ? s.color : done ? s.color+"66" : C.grayBorder}`,
+                background: active ? s.color : done ? s.color+"15" : C.grayLight,
+                color: active ? "#fff" : done ? s.color : C.grayMid,
+              }}>
+                {s.icon} {sf}/{s.fields.length}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <SectionBlock section={sec} answers={answers} onChange={handleChange} />
+
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:4 }}>
+        <Btn onClick={() => goSec(curSec - 1)} variant="ghost" disabled={curSec === 0}>← Назад</Btn>
+        <span style={{ fontSize:13, color: C.grayMid }}>Раздел {curSec + 1} из {FAMILY_SECTIONS.length}</span>
+        {curSec < FAMILY_SECTIONS.length - 1
+          ? <Btn onClick={() => goSec(curSec + 1)} variant="primary">Далее →</Btn>
+          : <Btn onClick={() => { onSubmit({ id: Date.now(), date: new Date().toISOString(), answers, parentName, formType:"family" }); setStep("done"); }} variant="yellow">✅ Отправить анкету</Btn>
+        }
+      </div>
+    </div>
+  );
+}
+
 // ─── Admin login ──────────────────────────────────────────────────────────────
 function AdminLogin({ onLogin }) {
   const [pw, setPw] = useState(""); const [err, setErr] = useState(false);
@@ -821,7 +953,14 @@ function AdminPanel({ submissions, loading, onRefresh, onDelete }) {
             <div key={sub.id || idx} style={{ background:C.grayLight, borderRadius:12, padding:"16px 20px", marginBottom:12, border:`1px solid ${C.grayBorder}` }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
                 <div style={{ flex:1 }}>
-                  <p style={{ margin:"0 0 2px", fontWeight:700, fontSize:15, color:C.dark }}>{name}</p>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2 }}>
+                    <p style={{ margin:0, fontWeight:700, fontSize:15, color:C.dark }}>{name}</p>
+                    <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10,
+                      background: sub.form_type==="family" ? "#7b5ea722" : C.tealLight,
+                      color: sub.form_type==="family" ? "#7b5ea7" : C.tealDark,
+                      border: `1px solid ${sub.form_type==="family" ? "#7b5ea744" : C.teal+"44"}`
+                    }}>{sub.form_type==="family" ? "🧬 Семейный фон" : "📋 М.И. Лынской"}</span>
+                  </div>
                   <p style={{ margin:"0 0 2px", fontSize:12, color:C.grayMid }}>
                     Родитель: {sub.parent_name || sub.parentName || "—"}
                   </p>
@@ -874,6 +1013,7 @@ async function sendToSheets(submission) {
         date: submission.date,
         answers: submission.answers,
         parent_name: submission.parentName || "",
+        form_type: submission.formType || "anamnez",
       }),
     });
     return true;
@@ -968,8 +1108,10 @@ export default function App() {
         </div>
       )}
       {view === "client"     && <ClientForm onSubmit={handleSubmit} />}
+      {view === "family"     && <FamilyForm onSubmit={handleSubmit} />}
       {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }} />}
       {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} onDelete={handleDelete} />}
     </div>
   );
 }
+
