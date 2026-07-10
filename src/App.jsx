@@ -622,11 +622,21 @@ function AdminPanel({ submissions, loading, onRefresh, onDelete }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletePw, setDeletePw] = useState("");
   const [deleteErr, setDeleteErr] = useState(false);
+  const [search, setSearch] = useState("");
 
   const safeSubs = (() => {
     try { return Array.isArray(submissions) ? submissions : []; }
     catch(e) { return []; }
   })();
+
+  const filteredSubs = search.trim()
+    ? safeSubs.filter(sub => {
+        const name = (sub.answers && sub.answers["s0_1"]) ? sub.answers["s0_1"].toLowerCase() : "";
+        const parent = (sub.parent_name || sub.parentName || "").toLowerCase();
+        const q = search.toLowerCase().trim();
+        return name.includes(q) || parent.includes(q);
+      })
+    : safeSubs;
 
   const doExport = (sub) => {
     try { exportToWord(sub); } catch(e) { alert("Ошибка экспорта"); }
@@ -742,16 +752,41 @@ function AdminPanel({ submissions, loading, onRefresh, onDelete }) {
     <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
       {DeleteModal}
       <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:24 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
           <Logo size={44} />
           <div>
             <h2 style={{ margin:0, fontSize:20, color:C.dark }}>Панель администратора</h2>
             <p style={{ margin:"2px 0 0", fontSize:13, color:C.grayMid }}>Всего анкет: {safeSubs.length} · общая база для всех администраторов</p>
           </div>
-          <button onClick={onRefresh} disabled={loading} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, background: C.grayLight, color: C.gray, marginLeft:"auto" }}>
+          <button onClick={onRefresh} disabled={loading} style={{ marginLeft:"auto", padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, background: C.grayLight, color: C.gray }}>
             {loading ? "⏳ Загружаем..." : "↻ Обновить"}
           </button>
         </div>
+
+        {/* Поиск */}
+        <div style={{ position:"relative", marginBottom:16 }}>
+          <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:15, color:C.grayMid, pointerEvents:"none" }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Поиск по фамилии или имени ребёнка..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              width:"100%", border:`1.5px solid ${search ? C.teal : C.grayBorder}`,
+              borderRadius:10, padding:"11px 14px 11px 42px", fontSize:14,
+              color: C.dark, outline:"none", boxSizing:"border-box",
+              background:"#fafcfc", fontFamily:"inherit", transition:"border-color .2s"
+            }}
+          />
+          {search && (
+            <button onClick={() => setSearch("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:20, color:C.grayMid, lineHeight:1, padding:0 }}>×</button>
+          )}
+        </div>
+        {search.trim() && (
+          <p style={{ fontSize:13, color:C.grayMid, marginBottom:12 }}>
+            Найдено: <b style={{color:C.teal}}>{filteredSubs.length}</b> из {safeSubs.length}
+          </p>
+        )}
 
         {loading && (
           <div style={{ textAlign:"center", padding:"40px 0", color:C.grayMid }}>
@@ -767,8 +802,15 @@ function AdminPanel({ submissions, loading, onRefresh, onDelete }) {
             <p style={{ fontSize:12, marginTop:8 }}>Нажмите «↻ Обновить» чтобы загрузить</p>
           </div>
         )}
+        {!loading && safeSubs.length > 0 && filteredSubs.length === 0 && (
+          <div style={{ textAlign:"center", padding:"48px 0", color:"#bbb" }}>
+            <div style={{ fontSize:48, marginBottom:12 }}>🔍</div>
+            <p>Ничего не найдено по запросу «{search}»</p>
+            <p style={{ fontSize:12, marginTop:8 }}>Попробуйте изменить запрос</p>
+          </div>
+        )}
 
-        {!loading && safeSubs.map((sub, idx) => {
+        {!loading && filteredSubs.map((sub, idx) => {
           let filled = 0;
           try { filled = ALL_FIELDS.filter(f => sub.answers && sub.answers[f.id]).length; } catch(e) {}
           const pct = Math.round(filled / TOTAL * 100);
