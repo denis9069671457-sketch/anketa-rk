@@ -587,6 +587,8 @@ function ClientForm({ onSubmit }) {
   const [curSec, setCurSec] = useState(0);
   const [answers, setAnswers] = useState({});
   const [parentName, setParentName] = useState("");
+  const [familyCurSec, setFamilyCurSec] = useState(0);
+  const [familyAnswers, setFamilyAnswers] = useState({});
   const topRef = useRef(null);
 
   const filled = ALL_FIELDS.filter(f => answers[f.id]).length;
@@ -598,17 +600,113 @@ function ClientForm({ onSubmit }) {
   if (step === "consent") return <ConsentScreen onAccept={(name) => { setParentName(name); setStep("welcome"); }} />;
 
   if (step === "done") return (
+    <div style={{ maxWidth:640, margin:"40px auto", padding:"0 20px", textAlign:"center" }}>
+      <div style={{ background: C.white, borderRadius:20, padding:"48px 40px", boxShadow:"0 4px 24px rgba(42,181,181,0.12)", marginBottom:20 }}>
+        <Logo size={72} />
+        <div style={{ fontSize:52, marginBottom:12, marginTop:16 }}>✅</div>
+        <h2 style={{ color: C.dark, fontSize:22, marginBottom:8 }}>Анкета отправлена!</h2>
+        <p style={{ color: C.grayMid, fontSize:14, marginBottom:0 }}>Спасибо! Первая анкета успешно передана специалисту.</p>
+      </div>
+
+      {/* Блок перехода ко второй анкете */}
+      <div style={{ background: "linear-gradient(135deg, #2a1a3a 0%, #1a2a2a 100%)", borderRadius:20, padding:"32px 36px", boxShadow:"0 4px 24px rgba(123,94,167,0.25)" }}>
+        <div style={{ fontSize:40, marginBottom:12 }}>🧬</div>
+        <h3 style={{ color: C.yellow, fontSize:20, fontWeight:800, marginBottom:8 }}>Необходимо заполнить вторую анкету</h3>
+        <p style={{ color:"rgba(255,255,255,0.75)", fontSize:14, marginBottom:24, lineHeight:1.7 }}>
+          Для полноценной диагностики специалисту также нужна <b style={{color:"#9b7fd4"}}>Анкета семейно-наследственного фона</b>.<br/>
+          Пожалуйста, не закрывайте страницу и заполните её прямо сейчас — это займёт 5–10 минут.
+        </p>
+        <div style={{ display:"flex", gap:12, justifyContent:"center", flexWrap:"wrap" }}>
+          <Btn
+            onClick={() => { setStep("family"); setCurSec(0); setAnswers({}); }}
+            variant="yellow"
+            style={{ fontSize:15, padding:"14px 32px" }}
+          >
+            Заполнить анкету семейного фона →
+          </Btn>
+        </div>
+        <p style={{ color:"rgba(255,255,255,0.35)", fontSize:11, marginTop:16 }}>
+          Данные конфиденциальны и используются только специалистами центра
+        </p>
+      </div>
+    </div>
+  );
+
+  if (step === "familyDone") return (
     <div style={{ maxWidth:600, margin:"60px auto", padding:"0 20px", textAlign:"center" }}>
       <div style={{ background: C.white, borderRadius:20, padding:"60px 40px", boxShadow:"0 4px 24px rgba(42,181,181,0.12)" }}>
-        <Logo size={80} style={{ margin:"0 auto 20px" }} />
-        <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
-        <h2 style={{ color: C.dark, fontSize:24, marginBottom:10 }}>Анкета отправлена!</h2>
-        <p style={{ color: C.grayMid, fontSize:15 }}>Спасибо! Ваши данные успешно переданы специалисту.</p>
+        <Logo size={80} />
+        <div style={{ fontSize:56, marginBottom:16, marginTop:16 }}>🎉</div>
+        <h2 style={{ color: C.dark, fontSize:24, marginBottom:10 }}>Обе анкеты заполнены!</h2>
+        <p style={{ color: C.grayMid, fontSize:15, marginBottom:8 }}>Спасибо! Все данные успешно переданы специалисту.</p>
+        <p style={{ color: C.teal, fontSize:13 }}>Специалист свяжется с вами для уточнения деталей диагностики.</p>
       </div>
     </div>
   );
 
   if (step === "welcome") return <WelcomeScreen onStart={() => setStep("form")} />;
+
+  // ── Семейный фон (вторая анкета) ──
+  if (step === "family") {
+    const FSECS = typeof FAMILY_SECTIONS !== "undefined" ? FAMILY_SECTIONS : [];
+    const FALL = FSECS.flatMap(s => s.fields);
+    const fFilled = FALL.filter(f => familyAnswers[f.id]).length;
+    const fPct = FALL.length > 0 ? Math.round(fFilled / FALL.length * 100) : 0;
+    const fSec = FSECS[familyCurSec] || null;
+    const goFSec = (n) => { setFamilyCurSec(n); setTimeout(() => topRef.current?.scrollIntoView({ behavior:"smooth" }), 50); };
+
+    if (!fSec) return null;
+
+    return (
+      <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
+        <div ref={topRef}/>
+        {/* Заголовок второй анкеты */}
+        <div style={{ background:"linear-gradient(135deg,#2a1a3a,#1a2a2a)", borderRadius:14, padding:"16px 24px", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
+          <span style={{ fontSize:28 }}>🧬</span>
+          <div>
+            <p style={{ color:C.yellow, fontWeight:700, fontSize:15, margin:0 }}>Анкета семейно-наследственного фона</p>
+            <p style={{ color:"rgba(255,255,255,0.6)", fontSize:12, margin:0 }}>Вторая анкета — шаг {familyCurSec+1} из {FSECS.length}</p>
+          </div>
+          <span style={{ marginLeft:"auto", color:"#9b7fd4", fontWeight:700, fontSize:14 }}>{fPct}%</span>
+        </div>
+
+        {/* Прогресс */}
+        <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"16px 20px", marginBottom:20 }}>
+          <ProgressBar pct={fPct} color="linear-gradient(90deg,#7b5ea7,#f5c842)" height={8}/>
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:12 }}>
+            {FSECS.map((s, i) => {
+              const sf = s.fields.filter(f => familyAnswers[f.id]).length;
+              const done = sf === s.fields.length;
+              const active = familyCurSec === i;
+              return (
+                <button key={s.id} onClick={() => goFSec(i)} style={{
+                  padding:"5px 12px", borderRadius:20, cursor:"pointer", fontSize:12, fontWeight:600,
+                  border:`2px solid ${active?s.color:done?s.color+"66":C.grayBorder}`,
+                  background:active?s.color:done?s.color+"15":C.grayLight,
+                  color:active?"#fff":done?s.color:C.grayMid,
+                }}>{s.icon} {sf}/{s.fields.length}</button>
+              );
+            })}
+          </div>
+        </div>
+
+        <SectionBlock section={fSec} answers={familyAnswers} onChange={(id,val) => setFamilyAnswers(p => ({...p,[id]:val}))}/>
+
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:4 }}>
+          <Btn onClick={() => goFSec(familyCurSec-1)} variant="ghost" disabled={familyCurSec===0}>← Назад</Btn>
+          <span style={{ fontSize:13, color:C.grayMid }}>Раздел {familyCurSec+1} из {FSECS.length}</span>
+          {familyCurSec < FSECS.length-1
+            ? <Btn onClick={() => goFSec(familyCurSec+1)} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
+            : <Btn onClick={async () => {
+                const familySub = { id: Date.now(), date: new Date().toISOString(), answers: familyAnswers, parentName, formType:"family" };
+                await onSubmit(familySub);
+                setStep("familyDone");
+              }} variant="yellow">✅ Отправить обе анкеты</Btn>
+          }
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
@@ -662,6 +760,8 @@ function FamilyForm({ onSubmit }) {
   const [curSec, setCurSec] = useState(0);
   const [answers, setAnswers] = useState({});
   const [parentName, setParentName] = useState("");
+  const [familyCurSec, setFamilyCurSec] = useState(0);
+  const [familyAnswers, setFamilyAnswers] = useState({});
   const topRef = useRef(null);
 
   const filled = ALL_FAMILY_FIELDS.filter(f => answers[f.id]).length;
@@ -1114,4 +1214,3 @@ export default function App() {
     </div>
   );
 }
-
