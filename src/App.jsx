@@ -372,146 +372,27 @@ function Btn({ onClick, variant="primary", disabled, children, style: extra={} }
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 function Header({ view, setView, auth, onLogout }) {
-  const nav = [
-    { key:"client", label:"📋 Анкета М.И. Лынской" },
-    { key:"family", label:"🧬 Семейный фон" },
-    { key:"admin",  label: auth ? "👤 Администратор" : "🔐 Администратор" },
-  ];
   return (
     <header style={{ background: C.dark, borderBottom:`3px solid ${C.teal}`, position:"sticky", top:0, zIndex:100 }}>
-      <div style={{ maxWidth:900, margin:"0 auto", padding:"0 20px", height:64, display:"flex", alignItems:"center", gap:16 }}>
-        <Logo size={44} />
-        <div style={{ marginRight:"auto" }}>
-          <div style={{ color: C.yellow, fontWeight:700, fontSize:15, letterSpacing:0.5 }}>Центр Рината Каримова</div>
-          <div style={{ color: C.teal, fontSize:11, marginTop:-1 }}>Анкета М.И. Лынской</div>
+      {/* Верхняя строка — логотип и название */}
+      <div style={{ maxWidth:900, margin:"0 auto", padding:"10px 16px 0", display:"flex", alignItems:"center", gap:12 }}>
+        <Logo size={36} />
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ color: C.yellow, fontWeight:700, fontSize:14, letterSpacing:0.3, lineHeight:1.2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>Центр Рината Каримова</div>
+          <div style={{ color: C.teal, fontSize:10, marginTop:1 }}>Анкета М.И. Лынской</div>
         </div>
-        {nav.map(n => (
-          <button key={n.key} onClick={()=> n.key==="admin" && !auth ? setView("adminLogin") : setView(n.key)}
-            style={{ padding:"7px 18px", borderRadius:20, border:"none", cursor:"pointer", fontSize:13, fontWeight:600,
-              background: view===n.key || (n.key==="admin" && view==="adminLogin") ? C.teal : "rgba(255,255,255,0.08)",
-              color: view===n.key || (n.key==="admin" && view==="adminLogin") ? "#fff" : "rgba(255,255,255,0.65)",
-              fontSize: n.key==="client" || n.key==="family" ? 12 : 13,
-              transition:"all .2s" }}>{n.label}</button>
-        ))}
         {auth && view==="admin" && (
-          <button onClick={onLogout} style={{ background:"transparent", border:`1px solid rgba(255,255,255,0.2)`, color:"rgba(255,255,255,0.5)", borderRadius:20, padding:"5px 14px", cursor:"pointer", fontSize:12 }}>Выйти</button>
+          <button onClick={onLogout} style={{ flexShrink:0, background:"transparent", border:`1px solid rgba(255,255,255,0.2)`, color:"rgba(255,255,255,0.5)", borderRadius:16, padding:"4px 10px", cursor:"pointer", fontSize:11 }}>Выйти</button>
         )}
       </div>
-    </header>
-  );
-}
-
-// ─── Consent screen ──────────────────────────────────────────────────────────
-function ConsentScreen({ onAccept }) {
-  const [checked, setChecked] = useState(false);
-  const [parentName, setParentName] = useState("");
-  const [parentNameErr, setParentNameErr] = useState(false);
-
-  const handleAccept = () => {
-    if (!parentName.trim()) { setParentNameErr(true); return; }
-    if (!checked) return;
-    onAccept(parentName.trim());
-  };
-
-  return (
-    <div style={{ maxWidth:780, margin:"0 auto", padding:"40px 20px" }}>
-      <div style={{ background: C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", overflow:"hidden" }}>
-        <div style={{ background:`linear-gradient(135deg, ${C.dark} 0%, #1a3a3a 100%)`, padding:"28px 36px", display:"flex", alignItems:"center", gap:20 }}>
-          <Logo size={56} />
-          <div>
-            <h1 style={{ color: C.yellow, fontSize:20, margin:"0 0 4px", fontWeight:800 }}>Согласие на обработку персональных данных</h1>
-            <p style={{ color: C.teal, fontSize:13, margin:0 }}>В соответствии с Федеральным законом № 152-ФЗ</p>
-          </div>
-        </div>
-        <div style={{ padding:"28px 36px" }}>
-
-          {/* Реквизиты оператора */}
-          <div style={{ background: C.tealLight, borderRadius:10, padding:"12px 18px", marginBottom:20, fontSize:12, color: C.gray, lineHeight:1.8 }}>
-            <b style={{ color: C.tealDark }}>Оператор персональных данных:</b><br/>
-            ИП Каримов Ринат Алишерович · ИНН 502239463615<br/>
-            143401, Московская область, г. Красногорск, бульвар Павшинский, д. 3<br/>
-            Руководитель: Каримов Ринат Алишерович
-          </div>
-
-          {/* Текст согласия */}
-          <div style={{
-            background:"#f8fefe", border:`1px solid ${C.tealLight}`,
-            borderRadius:12, padding:"20px 24px", marginBottom:20,
-            maxHeight:320, overflowY:"auto", fontSize:13, color:"#333", lineHeight:1.8
-          }}>
-            <p style={{ fontWeight:700, marginBottom:12, fontSize:14, textAlign:"center" }}>СОГЛАСИЕ НА ОБРАБОТКУ ПЕРСОНАЛЬНЫХ ДАННЫХ</p>
-
-            <p>Я, нижеподписавшийся(-аяся), являясь родителем (законным представителем) несовершеннолетнего ребёнка, в соответствии с требованиями Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных», свободно, своей волей и в своём интересе даю своё согласие <b>ИП Каримов Ринат Алишерович</b> (ИНН 502239463615, 143401, Московская область, г. Красногорск, бульвар Павшинский, д. 3; далее — Оператор) на обработку моих персональных данных и персональных данных моего ребёнка на следующих условиях:</p>
-
-            <p style={{ marginTop:14, fontWeight:600 }}>1. Перечень персональных данных, на обработку которых даётся согласие:</p>
-            <p>фамилия, имя, отчество ребёнка и родителя (законного представителя); дата рождения ребёнка; место проживания; сведения о состоянии здоровья ребёнка; сведения о течении беременности и родах; данные о раннем развитии ребёнка; сведения о семье; иные сведения, указанные в анкете по сбору анамнеза по стандарту М.И. Лынской.</p>
-
-            <p style={{ marginTop:14, fontWeight:600 }}>2. Цели обработки персональных данных:</p>
-            <p>проведение диагностики уровня речевого и психического развития ребёнка; составление индивидуальных рекомендаций и программ коррекции; ведение документации специалистов центра; организация и проведение консультаций специалистов.</p>
-
-            <p style={{ marginTop:14, fontWeight:600 }}>3. Перечень действий с персональными данными:</p>
-            <p>сбор, запись, систематизация, накопление, хранение, уточнение (обновление, изменение), извлечение, использование, обезличивание, блокирование, удаление, уничтожение персональных данных. Обработка осуществляется с использованием средств автоматизации.</p>
-
-            <p style={{ marginTop:14, fontWeight:600 }}>4. Условия обработки:</p>
-            <p>Оператор обязуется не раскрывать персональные данные третьим лицам и не распространять их без согласия субъекта персональных данных, если иное не предусмотрено законодательством Российской Федерации.</p>
-
-            <p style={{ marginTop:14, fontWeight:600 }}>5. Срок действия согласия:</p>
-            <p>Настоящее согласие действует с момента его предоставления и до достижения целей обработки персональных данных либо до момента его отзыва субъектом персональных данных.</p>
-
-            <p style={{ marginTop:14, fontWeight:600 }}>6. Порядок отзыва согласия:</p>
-            <p>Настоящее согласие может быть отозвано путём направления письменного заявления Оператору по адресу: 143401, Московская область, г. Красногорск, бульвар Павшинский, д. 3. После получения отзыва Оператор обязуется прекратить обработку и уничтожить персональные данные в срок, не превышающий 30 (тридцати) дней.</p>
-
-            <p style={{ marginTop:14, fontWeight:600 }}>7. Права субъекта персональных данных:</p>
-            <p>Я уведомлён(а) о своих правах, предусмотренных ст. 14 Федерального закона № 152-ФЗ «О персональных данных», в том числе: право на доступ к своим персональным данным; право требовать их уточнения, блокирования или уничтожения; право на обжалование действий Оператора в уполномоченный орган по защите прав субъектов персональных данных (Роскомнадзор).</p>
-          </div>
-
-          {/* ФИО родителя */}
-          <div style={{ marginBottom:16 }}>
-            <label style={{ display:"block", fontSize:13, fontWeight:600, color: C.dark, marginBottom:6 }}>
-              ФИО родителя (законного представителя) <span style={{ color:"#e84545" }}>*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="Например: Иванова Мария Петровна"
-              value={parentName}
-              onChange={e => { setParentName(e.target.value); setParentNameErr(false); }}
-              style={{
-                width:"100%", border:`1.5px solid ${parentNameErr ? "#e84545" : parentName ? C.teal : C.grayBorder}`,
-                borderRadius:8, padding:"11px 14px", fontSize:14, color: C.dark,
-                outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit"
-              }}
-            />
-            {parentNameErr && <p style={{ color:"#e84545", fontSize:12, margin:"4px 0 0" }}>Пожалуйста, укажите ФИО</p>}
-          </div>
-
-          {/* Галочка */}
-          <div
-            onClick={() => setChecked(p => !p)}
-            style={{ display:"flex", alignItems:"flex-start", gap:12, cursor:"pointer", marginBottom:24, padding:"14px 18px", background: checked ? "#e8f8f8" : C.grayLight, borderRadius:10, border:`2px solid ${checked ? C.teal : C.grayBorder}`, transition:"all .2s" }}
-          >
-            <div style={{
-              width:22, height:22, borderRadius:5, border:`2px solid ${checked ? C.teal : "#aaa"}`,
-              background: checked ? C.teal : "#fff", flexShrink:0, marginTop:1,
-              display:"flex", alignItems:"center", justifyContent:"center", transition:"all .2s"
-            }}>
-              {checked && <span style={{ color:"#fff", fontSize:14, fontWeight:900 }}>✓</span>}
-            </div>
-            <p style={{ margin:0, fontSize:13, color:"#333", lineHeight:1.6 }}>
-              Я ознакомился(-ась) с условиями обработки персональных данных и даю своё согласие на обработку персональных данных своих и своего ребёнка в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».
-            </p>
-          </div>
-
-          <Btn
-            onClick={handleAccept}
-            variant="primary"
-            disabled={!checked || !parentName.trim()}
-            style={{ fontSize:15, padding:"13px 36px", opacity: (checked && parentName.trim()) ? 1 : 0.4 }}
-          >
-            Согласен(на) — перейти к анкете →
-          </Btn>
-        </div>
+      {/* Навигация — горизонтальная прокрутка на мобильном */}
+      <div style={{ maxWidth:900, margin:"0 auto", padding:"8px 16px", display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch", scrollbarWidth:"none", msOverflowStyle:"none" }}>
+        <style>{`.nav-scroll::-webkit-scrollbar{display:none}`}</style>
+        <button onClick={() => setView("client")} style={{ flexShrink:0, padding:"6px 14px", borderRadius:16, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, whiteSpace:"nowrap", transition:"all .2s", background: view==="client" ? C.teal : "rgba(255,255,255,0.08)", color: view==="client" ? "#fff" : "rgba(255,255,255,0.65)" }}>📋 Анкета М.И. Лынской</button>
+        <button onClick={() => setView("family")} style={{ flexShrink:0, padding:"6px 14px", borderRadius:16, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, whiteSpace:"nowrap", transition:"all .2s", background: view==="family" ? C.teal : "rgba(255,255,255,0.08)", color: view==="family" ? "#fff" : "rgba(255,255,255,0.65)" }}>🧬 Семейный фон</button>
+        <button onClick={() => auth ? setView("admin") : setView("adminLogin")} style={{ flexShrink:0, padding:"6px 14px", borderRadius:16, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, whiteSpace:"nowrap", transition:"all .2s", background: (view==="admin"||view==="adminLogin") ? C.teal : "rgba(255,255,255,0.08)", color: (view==="admin"||view==="adminLogin") ? "#fff" : "rgba(255,255,255,0.65)" }}>{auth ? "👤 Администратор" : "🔐 Администратор"}</button>
       </div>
-    </div>
+    </header>
   );
 }
 
