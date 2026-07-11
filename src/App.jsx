@@ -922,8 +922,8 @@ function FamilyForm({ onSubmit }) {
 }
 
 // ─── Documents Screen ────────────────────────────────────────────────────────
-function DocumentsScreen({ parentName, childName, onSubmit }) {
-  const [checked, setChecked] = useState({});
+function DocumentsScreen({ parentName, childName, onSubmit, prevChecked = {}, prevDocs = null }) {
+  const [checked, setChecked] = useState(prevChecked || {});
   const [files, setFiles] = useState({});
   const [uploading, setUploading] = useState(false);
   const [comment, setComment] = useState("");
@@ -984,6 +984,13 @@ function DocumentsScreen({ parentName, childName, onSubmit }) {
         </div>
       </div>
 
+      {/* История предыдущей отправки */}
+      {prevDocs && (
+        <div style={{ background:"#fff8e1", borderLeft:`4px solid ${C.yellow}`, borderRadius:"0 12px 12px 0", padding:"14px 18px", marginBottom:16, fontSize:13, color:"#555", lineHeight:1.7 }}>
+          🔄 <b>Найдена предыдущая отправка</b> от {new Date(prevDocs.date).toLocaleDateString("ru-RU")}.<br/>
+          Документы которые вы уже отметили — отмечены галочками. Добавьте недостающие и прикрепите файлы.
+        </div>
+      )}
       {/* Статус */}
       {totalChecked > 0 && (
         <div style={{ background:C.tealLight, borderRadius:10, padding:"10px 16px", marginBottom:16, fontSize:13, color:C.tealDark, fontWeight:600 }}>
@@ -1062,11 +1069,46 @@ function DocumentsScreen({ parentName, childName, onSubmit }) {
 }
 
 // ─── DocsOnlyForm ────────────────────────────────────────────────────────────
+async function loadPreviousDocs(childName) {
+  try {
+    const name = childName.trim().toLowerCase();
+    const res = await sbFetch(
+      `/rest/v1/ankety?select=*&form_type=eq.documents&order=date.desc`
+    );
+    const data = await res.json();
+    if (!Array.isArray(data)) return null;
+    // Find by child name (case-insensitive)
+    const match = data.find(r => {
+      const n = (r.answers?.s0_1 || r.parent_name || "").toLowerCase();
+      return n.includes(name) || name.includes(n.split(" ")[0]);
+    });
+    return match || null;
+  } catch(e) { return null; }
+}
+
 function DocsOnlyForm({ onSubmit }) {
   const [step, setStep] = useState("info");
   const [childName, setChildName] = useState("");
   const [parentName, setParentName] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [prevDocs, setPrevDocs] = useState(null); // previous submission
+  const [prevChecked, setPrevChecked] = useState({}); // already sent docs
   const [done, setDone] = useState(false);
+
+  const handleSearch = async () => {
+    if (!childName.trim() || !parentName.trim()) return;
+    setSearching(true);
+    const prev = await loadPreviousDocs(childName);
+    if (prev) {
+      try {
+        const checked = JSON.parse(prev.answers?.checkedDocs || "{}");
+        setPrevChecked(checked);
+        setPrevDocs(prev);
+      } catch(e) {}
+    }
+    setSearching(false);
+    setStep("docs");
+  };
 
   if (done) return (
     <div style={{ maxWidth:600, margin:"60px auto", padding:"0 20px", textAlign:"center" }}>
@@ -1091,7 +1133,8 @@ function DocsOnlyForm({ onSubmit }) {
         </div>
         <div style={{ padding:"28px 32px" }}>
           <div style={{ background:"#fff8e1", borderLeft:`4px solid ${C.yellow}`, borderRadius:"0 10px 10px 0", padding:"14px 18px", marginBottom:24, fontSize:13, color:"#555", lineHeight:1.7 }}>
-            ⏰ <b>Важно:</b> все документы необходимо прислать <b>не позднее чем за 3 суток</b> до начала диагностики. Без полного пакета документов консилиум может быть перенесён.
+            ⏰ <b>Важно:</b> все документы необходимо прислать <b>не позднее чем за 3 суток</b> до начала диагностики.<br/>
+            Если вы уже отправляли часть документов — введите ту же фамилию и мы покажем что уже есть, а что ещё нужно добавить.
           </div>
           <div style={{ marginBottom:16 }}>
             <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>Фамилия и имя ребёнка <span style={{color:"#e84545"}}>*</span></label>
@@ -1102,11 +1145,13 @@ function DocsOnlyForm({ onSubmit }) {
           <div style={{ marginBottom:28 }}>
             <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>ФИО родителя <span style={{color:"#e84545"}}>*</span></label>
             <input type="text" value={parentName} onChange={e=>setParentName(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&handleSearch()}
               placeholder="Например: Иванова Мария Петровна"
               style={{ width:"100%", border:`1.5px solid ${parentName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
           </div>
-          <Btn onClick={()=>setStep("docs")} variant="primary" disabled={!childName.trim()||!parentName.trim()} style={{ fontSize:15, padding:"13px 32px", opacity:childName.trim()&&parentName.trim()?1:0.4 }}>
-            Перейти к списку документов →
+          <Btn onClick={handleSearch} variant="primary" disabled={!childName.trim()||!parentName.trim()||searching}
+            style={{ fontSize:15, padding:"13px 32px", opacity:childName.trim()&&parentName.trim()?1:0.4 }}>
+            {searching ? "⏳ Проверяем историю..." : "Перейти к документам →"}
           </Btn>
         </div>
       </div>
@@ -1117,6 +1162,8 @@ function DocsOnlyForm({ onSubmit }) {
     <DocumentsScreen
       parentName={parentName}
       childName={childName}
+      prevChecked={prevChecked}
+      prevDocs={prevDocs}
       onSubmit={async (docData) => {
         await onSubmit({ ...docData, answers: { ...docData.answers, s0_1: childName } });
         setDone(true);
