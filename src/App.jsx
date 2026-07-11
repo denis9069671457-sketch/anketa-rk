@@ -387,7 +387,6 @@ function Header({ view, setView, auth, onLogout }) {
       </div>
       {/* Навигация — горизонтальная прокрутка на мобильном */}
       <div style={{ maxWidth:900, margin:"0 auto", padding:"8px 16px", display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch", scrollbarWidth:"none", msOverflowStyle:"none" }}>
-        <style>{`.nav-scroll::-webkit-scrollbar{display:none}`}</style>
         <button onClick={() => setView("client")} style={{ flexShrink:0, padding:"6px 14px", borderRadius:16, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, whiteSpace:"nowrap", transition:"all .2s", background: view==="client" ? C.teal : "rgba(255,255,255,0.08)", color: view==="client" ? "#fff" : "rgba(255,255,255,0.65)" }}>📋 Анкета М.И. Лынской</button>
         <button onClick={() => setView("family")} style={{ flexShrink:0, padding:"6px 14px", borderRadius:16, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, whiteSpace:"nowrap", transition:"all .2s", background: view==="family" ? C.teal : "rgba(255,255,255,0.08)", color: view==="family" ? "#fff" : "rgba(255,255,255,0.65)" }}>🧬 Семейный фон</button>
         <button onClick={() => auth ? setView("admin") : setView("adminLogin")} style={{ flexShrink:0, padding:"6px 14px", borderRadius:16, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, whiteSpace:"nowrap", transition:"all .2s", background: (view==="admin"||view==="adminLogin") ? C.teal : "rgba(255,255,255,0.08)", color: (view==="admin"||view==="adminLogin") ? "#fff" : "rgba(255,255,255,0.65)" }}>{auth ? "👤 Администратор" : "🔐 Администратор"}</button>
@@ -541,7 +540,6 @@ function ClientForm({ onSubmit }) {
     return (
       <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
         <div ref={topRef}/>
-        {/* Заголовок второй анкеты */}
         <div style={{ background:"linear-gradient(135deg,#2a1a3a,#1a2a2a)", borderRadius:14, padding:"16px 24px", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
           <span style={{ fontSize:28 }}>🧬</span>
           <div>
@@ -550,8 +548,6 @@ function ClientForm({ onSubmit }) {
           </div>
           <span style={{ marginLeft:"auto", color:"#9b7fd4", fontWeight:700, fontSize:14 }}>{fPct}%</span>
         </div>
-
-        {/* Прогресс */}
         <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"16px 20px", marginBottom:20 }}>
           <ProgressBar pct={fPct} color="linear-gradient(90deg,#7b5ea7,#f5c842)" height={8}/>
           <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:12 }}>
@@ -570,18 +566,15 @@ function ClientForm({ onSubmit }) {
             })}
           </div>
         </div>
-
         <SectionBlock section={fSec} answers={familyAnswers} onChange={(id,val) => setFamilyAnswers(p => ({...p,[id]:val}))}/>
-
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:4 }}>
           <Btn onClick={() => goFSec(familyCurSec-1)} variant="ghost" disabled={familyCurSec===0}>← Назад</Btn>
           <span style={{ fontSize:13, color:C.grayMid }}>Раздел {familyCurSec+1} из {FSECS.length}</span>
           {familyCurSec < FSECS.length-1
             ? <Btn onClick={() => goFSec(familyCurSec+1)} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
-            : <Btn onClick={async () => {
-                const familySub = { id: Date.now(), date: new Date().toISOString(), answers: familyAnswers, parentName, formType:"family" };
-                await onSubmit(familySub);
-                setStep("familyDone");
+            : <Btn onClick={() => {
+                const familySub = { id: Date.now(), date: new Date().toISOString(), answers: {...familyAnswers}, parentName, formType:"family" };
+                onSubmit(familySub).then(() => setStep("familyDone")).catch(() => setStep("familyDone"));
               }} variant="yellow">✅ Отправить обе анкеты</Btn>
           }
         </div>
