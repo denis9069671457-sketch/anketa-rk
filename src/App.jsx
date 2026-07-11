@@ -496,6 +496,7 @@ function Header({ view, setView, auth, onLogout }) {
   const navItems = [
     { key:"client", label:"📋 Анкета М.И. Лынской" },
     { key:"family", label:"🧬 Семейный фон" },
+    { key:"docs",   label:"📎 Документы" },
     { key:"admin",  label: auth ? "👤 Администратор" : "🔐 Администратор" },
   ];
   const handleNav = (key) => {
@@ -1060,6 +1061,70 @@ function DocumentsScreen({ parentName, childName, onSubmit }) {
   );
 }
 
+// ─── DocsOnlyForm ────────────────────────────────────────────────────────────
+function DocsOnlyForm({ onSubmit }) {
+  const [step, setStep] = useState("info");
+  const [childName, setChildName] = useState("");
+  const [parentName, setParentName] = useState("");
+  const [done, setDone] = useState(false);
+
+  if (done) return (
+    <div style={{ maxWidth:600, margin:"60px auto", padding:"0 20px", textAlign:"center" }}>
+      <div style={{ background:C.white, borderRadius:20, padding:"60px 40px", boxShadow:"0 4px 24px rgba(42,181,181,0.12)" }}>
+        <Logo size={80}/>
+        <div style={{ fontSize:56, marginBottom:16, marginTop:16 }}>📎</div>
+        <h2 style={{ color:C.dark, fontSize:24, marginBottom:10 }}>Документы отправлены!</h2>
+        <p style={{ color:C.grayMid, fontSize:15 }}>Спасибо! Администратор получил ваши документы и ознакомится с ними до диагностики.</p>
+      </div>
+    </div>
+  );
+
+  if (step === "info") return (
+    <div style={{ maxWidth:640, margin:"0 auto", padding:"40px 20px" }}>
+      <div style={{ background:C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", overflow:"hidden" }}>
+        <div style={{ background:`linear-gradient(135deg,${C.dark},#1a3a2a)`, padding:"28px 32px", display:"flex", alignItems:"center", gap:16 }}>
+          <Logo size={52}/>
+          <div>
+            <h1 style={{ color:C.yellow, fontSize:18, fontWeight:800, margin:"0 0 4px" }}>Отправка документов</h1>
+            <p style={{ color:C.teal, fontSize:12, margin:0 }}>Перед диагностическим консилиумом</p>
+          </div>
+        </div>
+        <div style={{ padding:"28px 32px" }}>
+          <div style={{ background:"#fff8e1", borderLeft:`4px solid ${C.yellow}`, borderRadius:"0 10px 10px 0", padding:"14px 18px", marginBottom:24, fontSize:13, color:"#555", lineHeight:1.7 }}>
+            ⏰ <b>Важно:</b> все документы необходимо прислать <b>не позднее чем за 3 суток</b> до начала диагностики. Без полного пакета документов консилиум может быть перенесён.
+          </div>
+          <div style={{ marginBottom:16 }}>
+            <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>Фамилия и имя ребёнка <span style={{color:"#e84545"}}>*</span></label>
+            <input type="text" value={childName} onChange={e=>setChildName(e.target.value)}
+              placeholder="Например: Иванов Артём"
+              style={{ width:"100%", border:`1.5px solid ${childName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+          </div>
+          <div style={{ marginBottom:28 }}>
+            <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>ФИО родителя <span style={{color:"#e84545"}}>*</span></label>
+            <input type="text" value={parentName} onChange={e=>setParentName(e.target.value)}
+              placeholder="Например: Иванова Мария Петровна"
+              style={{ width:"100%", border:`1.5px solid ${parentName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+          </div>
+          <Btn onClick={()=>setStep("docs")} variant="primary" disabled={!childName.trim()||!parentName.trim()} style={{ fontSize:15, padding:"13px 32px", opacity:childName.trim()&&parentName.trim()?1:0.4 }}>
+            Перейти к списку документов →
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <DocumentsScreen
+      parentName={parentName}
+      childName={childName}
+      onSubmit={async (docData) => {
+        await onSubmit({ ...docData, answers: { ...docData.answers, s0_1: childName } });
+        setDone(true);
+      }}
+    />
+  );
+}
+
 // ─── Admin login ──────────────────────────────────────────────────────────────
 function AdminLogin({ onLogin }) {
   const [pw, setPw] = useState(""); const [err, setErr] = useState(false);
@@ -1434,6 +1499,7 @@ function AppInner() {
       )}
       {view === "client"     && <ClientForm onSubmit={handleSubmit} />}
       {view === "family"     && <FamilyForm onSubmit={handleSubmit} />}
+      {view === "docs"       && <DocsOnlyForm onSubmit={handleSubmit} />}
       {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }} />}
       {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} onDelete={handleDelete} />}
     </div>
