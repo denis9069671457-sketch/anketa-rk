@@ -1135,5 +1135,3 @@ async function loadFromSheets() {
     return [];
   }
 }
-
-
