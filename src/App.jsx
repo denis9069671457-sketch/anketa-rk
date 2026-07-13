@@ -1136,4 +1136,58 @@ async function loadFromSheets() {
   }
 }
 
+// ─── App root ─────────────────────────────────────────────────────────────────
+function AppInner() {
+  const [view, setView] = React.useState("client");
+  const [auth, setAuth] = React.useState(false);
+  const [submissions, setSubmissions] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [saveStatus, setSaveStatus] = React.useState(null);
 
+  const loadSubmissions = async () => {
+    setLoading(true);
+    try {
+      const subs = await loadFromSheets();
+      setSubmissions(Array.isArray(subs) ? subs : []);
+    } catch(e) { setSubmissions([]); }
+    setLoading(false);
+  };
+
+  const handleSubmit = async (sub) => {
+    setSaveStatus("saving");
+    try {
+      const ok = await sendToSheets(sub);
+      setSaveStatus(ok ? "ok" : "error");
+    } catch(e) { setSaveStatus("error"); }
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleDelete = async (sub) => {
+    try {
+      await apiCall("DELETE", { id: sub.id });
+      setSubmissions(prev => prev.filter(s => s.id !== sub.id));
+    } catch(e) { console.error("Delete error:", e); }
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.grayLight, fontFamily:"'Segoe UI',Arial,sans-serif" }}>
+      <Header view={view} setView={setView} auth={auth} onLogout={() => { setAuth(false); setView("client"); }}/>
+      {saveStatus === "saving" && <div style={{ background:"#f5c842", color:"#1a2a2a", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>⏳ Сохраняем анкету...</div>}
+      {saveStatus === "ok" && <div style={{ background:"#27ae60", color:"#fff", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>✅ Анкета успешно сохранена!</div>}
+      {saveStatus === "error" && <div style={{ background:"#e84545", color:"#fff", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>⚠️ Ошибка сохранения. Проверьте интернет.</div>}
+      {view === "client" && <ClientForm onSubmit={handleSubmit}/>}
+      {view === "family" && <FamilyForm onSubmit={handleSubmit}/>}
+      {view === "docs" && <DocsOnlyForm onSubmit={handleSubmit}/>}
+      {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }}/>}
+      {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} onDelete={handleDelete}/>}
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppInner />
+    </ErrorBoundary>
+  );
+}
