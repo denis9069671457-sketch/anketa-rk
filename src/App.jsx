@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react"; // v2
 import LOGO_B64 from "./logo.png";
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
