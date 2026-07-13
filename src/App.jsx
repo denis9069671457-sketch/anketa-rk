@@ -394,101 +394,37 @@ function Logo({ size = 48 }) {
 }
 
 
-const SUPABASE_URL = "https://nhlpsjwremebrbrivfbe.supabase.co";
-const SUPABASE_KEY = "sb_publishable_DfIfBNa9QEQyzPrpZzcNOA_SHIx_8hD";
+const NEON_HOST = "ep-orange-art-asgqyaia-pooler.c-4.eu-central-1.aws.neon.tech";
+const NEON_USER = "neondb_owner";
+const NEON_PASS = "npg_uA7rOk6LdWsV";
+const NEON_DB = "neondb";
 
-async function sbFetch(path, options = {}) {
-  const res = await fetch(SUPABASE_URL + path, {
-    ...options,
-    headers: {
-      "apikey": SUPABASE_KEY,
-      "Authorization": "Bearer " + SUPABASE_KEY,
-      "Content-Type": "application/json",
-      "Prefer": options.prefer || "",
-      ...(options.headers || {}),
-    },
-  });
-  return res;
-}
-
-async function sendToSheets(submission) {
-  try {
-    const body = {
-      date: submission.date,
-      answers: submission.answers || {},
-      parent_name: submission.parentName || "",
-      form_type: submission.formType || "anamnez",
-    };
-    if (submission.formType === "documents") {
-      body.answers = {
-        checkedDocs: JSON.stringify(submission.checkedDocs || {}),
-        comment: submission.comment || "",
-        fileNames: JSON.stringify((submission.uploadedFiles || []).map(f => ({ docId: f.docId, fileName: f.fileName, fileType: f.fileType }))),
-        fileData: JSON.stringify((submission.uploadedFiles || []).map(f => ({ docId: f.docId, data: f.fileData }))),
-      };
-    }
-    await sbFetch("/rest/v1/ankety", {
-      method: "POST", prefer: "return=minimal",
-      body: JSON.stringify(body),
-    });
-    return true;
-  } catch(e) {
-    console.error("Supabase save error:", e);
-    return false;
-  }
-}
-
-async function loadFromSheets() {
-  try {
-    const res = await sbFetch("/rest/v1/ankety?select=*&order=date.desc");
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch(e) {
-    console.error("Supabase load error:", e);
-    return [];
-  }
-}
-
-// ─── Shared UI ────────────────────────────────────────────────────────────────
-const inputStyle = {
-  width:"100%", border:`1.5px solid ${C.grayBorder}`, borderRadius:8,
-  padding:"10px 14px", fontSize:14, color: C.dark, outline:"none",
-  resize:"vertical", boxSizing:"border-box", background:"#fafcfc",
-  fontFamily:"inherit", transition:"border-color .2s",
-};
+const inputStyle = { width:"100%", border:"1.5px solid #e2e8f0", borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", resize:"vertical", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit", transition:"border-color .2s" };
 
 function Field({ field, value, onChange }) {
   const [focused, setFocused] = useState(false);
   const style = { ...inputStyle, borderColor: focused ? C.teal : C.grayBorder };
   return field.type === "textarea"
-    ? <textarea rows={3} style={style} value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Введите ответ..." onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} />
-    : <input type="text" style={style} value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Введите ответ..." onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} />;
+    ? <textarea rows={3} style={style} value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Введите ответ..." onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)}/>
+    : <input type="text" style={style} value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Введите ответ..." onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)}/>;
 }
 
-function ProgressBar({ pct, color, height = 6 }) {
-  return (
-    <div style={{ height, background: C.grayBorder, borderRadius:4, overflow:"hidden" }}>
-      <div style={{ height:"100%", width:`${pct}%`, background: color || C.teal, borderRadius:4, transition:"width .4s" }} />
-    </div>
-  );
+function ProgressBar({ pct, color, height=6 }) {
+  return <div style={{height,background:C.grayBorder,borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:color||C.teal,borderRadius:4,transition:"width .4s"}}/></div>;
 }
 
 function Badge({ color, children }) {
-  return <span style={{ display:"inline-block", padding:"2px 10px", borderRadius:12, fontSize:11, fontWeight:700, background: color+"22", color, border:`1px solid ${color}44` }}>{children}</span>;
+  return <span style={{display:"inline-block",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:700,background:color+"22",color,border:`1px solid ${color}44`}}>{children}</span>;
 }
 
-function Btn({ onClick, variant="primary", disabled, children, style: extra={} }) {
-  const base = {
-    padding:"10px 24px", borderRadius:8, border:"none", cursor: disabled?"not-allowed":"pointer",
-    fontSize:14, fontWeight:700, transition:"all .2s", letterSpacing:0.3, opacity: disabled ? 0.6 : 1,
-  };
+function Btn({ onClick, variant="primary", disabled, children, style:extra={} }) {
+  const base = {padding:"10px 24px",borderRadius:8,border:"none",cursor:disabled?"not-allowed":"pointer",fontSize:14,fontWeight:700,transition:"all .2s",opacity:disabled?0.5:1};
   const styles = {
-    primary:  { ...base, background: C.teal, color: "#fff" },
-    yellow:   { ...base, background: C.yellow, color: C.dark },
-    ghost:    { ...base, background: C.grayLight, color: C.gray },
-    danger:   { ...base, background: "#fee", color: "#c00" },
+    primary:{...base,background:C.teal,color:"#fff"},
+    yellow:{...base,background:C.yellow,color:C.dark},
+    ghost:{...base,background:C.grayLight,color:C.gray},
   };
-  return <button onClick={disabled ? undefined : onClick} style={{ ...styles[variant], ...extra }}>{children}</button>;
+  return <button onClick={disabled?undefined:onClick} style={{...styles[variant],...extra}}>{children}</button>;
 }
 
 // ─── Header ───────────────────────────────────────────────────────────────────
@@ -499,31 +435,23 @@ function Header({ view, setView, auth, onLogout }) {
     { key:"docs",   label:"📎 Документы" },
     { key:"admin",  label: auth ? "👤 Администратор" : "🔐 Администратор" },
   ];
-  const handleNav = (key) => {
-    if (key === "admin") { auth ? setView("admin") : setView("adminLogin"); }
-    else { setView(key); }
-  };
-  const isActive = (key) => view === key || (key === "admin" && view === "adminLogin");
+  const handleNav = (key) => { if (key==="admin") { auth?setView("admin"):setView("adminLogin"); } else { setView(key); } };
+  const isActive = (key) => view===key || (key==="admin" && view==="adminLogin");
   return (
-    <header style={{ background: C.dark, borderBottom:`3px solid ${C.teal}`, position:"sticky", top:0, zIndex:100 }}>
-      <div style={{ maxWidth:900, margin:"0 auto", padding:"10px 16px 0", display:"flex", alignItems:"center", gap:12 }}>
-        <Logo size={36} />
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ color: C.yellow, fontWeight:700, fontSize:14, lineHeight:1.2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>Центр Рината Каримова</div>
-          <div style={{ color: C.teal, fontSize:10, marginTop:1 }}>Анкета М.И. Лынской</div>
+    <header style={{background:C.dark,borderBottom:`3px solid ${C.teal}`,position:"sticky",top:0,zIndex:100}}>
+      <div style={{maxWidth:900,margin:"0 auto",padding:"10px 16px 0",display:"flex",alignItems:"center",gap:12}}>
+        <Logo size={36}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{color:C.yellow,fontWeight:700,fontSize:14,lineHeight:1.2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>Центр Рината Каримова</div>
+          <div style={{color:C.teal,fontSize:10,marginTop:1}}>Анкета М.И. Лынской</div>
         </div>
-        {auth && view === "admin" && (
-          <button onClick={onLogout} style={{ flexShrink:0, background:"transparent", border:"1px solid rgba(255,255,255,0.2)", color:"rgba(255,255,255,0.5)", borderRadius:16, padding:"4px 10px", cursor:"pointer", fontSize:11 }}>Выйти</button>
-        )}
+        {auth && view==="admin" && <button onClick={onLogout} style={{flexShrink:0,background:"transparent",border:"1px solid rgba(255,255,255,0.2)",color:"rgba(255,255,255,0.5)",borderRadius:16,padding:"4px 10px",cursor:"pointer",fontSize:11}}>Выйти</button>}
       </div>
-      <div style={{ maxWidth:900, margin:"0 auto", padding:"8px 16px 10px", display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
-        {navItems.map(item => (
-          <button key={item.key} onClick={() => handleNav(item.key)} style={{
-            flexShrink:0, padding:"6px 14px", borderRadius:16, border:"none",
-            cursor:"pointer", fontSize:12, fontWeight:600, whiteSpace:"nowrap",
-            background: isActive(item.key) ? C.teal : "rgba(255,255,255,0.1)",
-            color: isActive(item.key) ? "#fff" : "rgba(255,255,255,0.65)",
-          }}>{item.label}</button>
+      <div style={{maxWidth:900,margin:"0 auto",padding:"8px 16px 10px",display:"flex",gap:6,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+        {navItems.map(item=>(
+          <button key={item.key} onClick={()=>handleNav(item.key)} style={{flexShrink:0,padding:"6px 14px",borderRadius:16,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,whiteSpace:"nowrap",background:isActive(item.key)?C.teal:"rgba(255,255,255,0.1)",color:isActive(item.key)?"#fff":"rgba(255,255,255,0.65)"}}>
+            {item.label}
+          </button>
         ))}
       </div>
     </header>
@@ -533,62 +461,55 @@ function Header({ view, setView, auth, onLogout }) {
 // ─── Welcome screen ───────────────────────────────────────────────────────────
 function WelcomeScreen({ onStart }) {
   return (
-    <div style={{ maxWidth:780, margin:"0 auto", padding:"40px 20px" }}>
-      {/* Hero card */}
-      <div style={{ background: C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", overflow:"hidden", marginBottom:24 }}>
-        <div style={{ background:`linear-gradient(135deg, ${C.dark} 0%, #1a3a3a 100%)`, padding:"36px 40px", display:"flex", alignItems:"center", gap:28 }}>
-          <Logo size={80} />
+    <div style={{maxWidth:780,margin:"0 auto",padding:"40px 20px"}}>
+      <div style={{background:C.white,borderRadius:20,boxShadow:"0 4px 24px rgba(42,181,181,0.12)",overflow:"hidden"}}>
+        <div style={{background:`linear-gradient(135deg,${C.dark} 0%,#1a3a3a 100%)`,padding:"36px 40px",display:"flex",alignItems:"center",gap:28}}>
+          <Logo size={80}/>
           <div>
-            <h1 style={{ color: C.yellow, fontSize:26, margin:"0 0 6px", fontWeight:800 }}>Анкета по сбору анамнеза</h1>
-            <p style={{ color: C.teal, fontSize:14, margin:0 }}>По стандарту М.И. Лынской</p>
+            <h1 style={{color:C.yellow,fontSize:26,margin:"0 0 6px",fontWeight:800}}>Анкета по сбору анамнеза</h1>
+            <p style={{color:C.teal,fontSize:14,margin:0}}>По стандарту М.И. Лынской</p>
           </div>
         </div>
-        <div style={{ padding:"32px 40px" }}>
-          <div style={{ background: C.tealLight, borderRadius:12, padding:20, marginBottom:28, borderLeft:`4px solid ${C.teal}` }}>
-            <p style={{ margin:0, fontSize:14, color: C.gray, lineHeight:1.8 }}>
-              Анкета содержит <b style={{color:C.tealDark}}>{TOTAL} вопросов</b>, разбитых на <b style={{color:C.tealDark}}>{SECTIONS.length} разделов</b>.<br/>
-              Пожалуйста, отвечайте максимально подробно — это поможет специалисту составить точную картину.<br/>
-              Вы можете заполнять разделы в любом порядке и возвращаться к ним.
-            </p>
+        <div style={{padding:"32px 40px"}}>
+          <div style={{background:C.tealLight,borderRadius:12,padding:20,marginBottom:28,borderLeft:`4px solid ${C.teal}`,fontSize:14,color:"#333",lineHeight:1.8}}>
+            Анкета содержит <b style={{color:C.tealDark}}>{TOTAL} вопросов</b>, разбитых на <b style={{color:C.tealDark}}>{SECTIONS.length} разделов</b>. Пожалуйста, отвечайте максимально подробно.
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:32 }}>
-            {SECTIONS.map(s => (
-              <div key={s.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: C.grayLight, borderRadius:10, border:`1px solid ${C.grayBorder}` }}>
-                <span style={{ fontSize:20 }}>{s.icon}</span>
-                <span style={{ fontSize:13, color: C.gray, flex:1 }}>{s.title}</span>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:32}}>
+            {SECTIONS.map(s=>(
+              <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:C.grayLight,borderRadius:10,border:`1px solid ${C.grayBorder}`}}>
+                <span style={{fontSize:20}}>{s.icon}</span>
+                <span style={{fontSize:13,color:C.gray,flex:1}}>{s.title}</span>
                 <Badge color={s.color}>{s.fields.length}</Badge>
               </div>
             ))}
           </div>
-          <Btn onClick={onStart} variant="primary" style={{ fontSize:15, padding:"12px 32px" }}>
-            Начать заполнение →
-          </Btn>
+          <Btn onClick={onStart} variant="primary" style={{fontSize:15,padding:"12px 32px"}}>Начать заполнение →</Btn>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Section form ─────────────────────────────────────────────────────────────
+// ─── SectionBlock ─────────────────────────────────────────────────────────────
 function SectionBlock({ section, answers, onChange }) {
-  const filled = section.fields.filter(f => answers[f.id]).length;
-  const pct = Math.round(filled / section.fields.length * 100);
+  const filled = section.fields.filter(f=>answers[f.id]).length;
+  const pct = Math.round(filled/section.fields.length*100);
   return (
-    <div style={{ background: C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", marginBottom:24, overflow:"hidden" }}>
-      <div style={{ background:`linear-gradient(90deg, ${section.color}18, transparent)`, borderTop:`3px solid ${section.color}`, padding:"20px 28px 16px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-          <span style={{ fontSize:22 }}>{section.icon}</span>
-          <span style={{ fontSize:17, fontWeight:700, color: C.dark }}>{section.title}</span>
-          <Badge color={section.color} style={{ marginLeft:"auto" }}>{filled}/{section.fields.length}</Badge>
+    <div style={{background:C.white,borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",marginBottom:24,overflow:"hidden"}}>
+      <div style={{background:`linear-gradient(90deg,${section.color}18,transparent)`,borderTop:`3px solid ${section.color}`,padding:"20px 28px 16px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+          <span style={{fontSize:22}}>{section.icon}</span>
+          <span style={{fontSize:17,fontWeight:700,color:C.dark}}>{section.title}</span>
+          <span style={{marginLeft:"auto",display:"inline-block",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:700,background:section.color+"22",color:section.color,border:`1px solid ${section.color}44`}}>{filled}/{section.fields.length}</span>
         </div>
-        <ProgressBar pct={pct} color={section.color} />
+        <ProgressBar pct={pct} color={section.color}/>
       </div>
-      <div style={{ padding:"20px 28px" }}>
-        {section.fields.map((f, i) => (
-          <div key={f.id} style={{ marginBottom:22 }}>
-            <div style={{ fontSize:11, color: C.grayMid, marginBottom:4 }}>Вопрос {i + 1}</div>
-            <div style={{ fontSize:14, color: C.gray, marginBottom:8, lineHeight:1.6, fontWeight:500 }}>{f.label}</div>
-            <Field field={f} value={answers[f.id]} onChange={v => onChange(f.id, v)} />
+      <div style={{padding:"20px 28px"}}>
+        {section.fields.map((f,i)=>(
+          <div key={f.id} style={{marginBottom:22}}>
+            <div style={{fontSize:11,color:C.grayMid,marginBottom:4}}>Вопрос {i+1}</div>
+            <div style={{fontSize:14,color:C.gray,marginBottom:8,lineHeight:1.6,fontWeight:500}}>{f.label}</div>
+            <Field field={f} value={answers[f.id]} onChange={v=>onChange(f.id,v)}/>
           </div>
         ))}
       </div>
@@ -596,72 +517,49 @@ function SectionBlock({ section, answers, onChange }) {
   );
 }
 
-// ─── Consent screen ──────────────────────────────────────────────────────────
+// ─── Consent screen ───────────────────────────────────────────────────────────
 function ConsentScreen({ onAccept }) {
   const [checked, setChecked] = useState(false);
   const [parentName, setParentName] = useState("");
   const [nameErr, setNameErr] = useState(false);
-
-  const handle = () => {
-    if (!parentName.trim()) { setNameErr(true); return; }
-    if (!checked) return;
-    onAccept(parentName.trim());
-  };
-
+  const handle = () => { if(!parentName.trim()){setNameErr(true);return;} if(!checked)return; onAccept(parentName.trim()); };
   return (
-    <div style={{ maxWidth:780, margin:"0 auto", padding:"40px 20px" }}>
-      <div style={{ background: C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", overflow:"hidden" }}>
-        <div style={{ background:`linear-gradient(135deg, ${C.dark} 0%, #1a3a3a 100%)`, padding:"28px 36px", display:"flex", alignItems:"center", gap:20 }}>
+    <div style={{maxWidth:780,margin:"0 auto",padding:"40px 20px"}}>
+      <div style={{background:C.white,borderRadius:20,boxShadow:"0 4px 24px rgba(42,181,181,0.12)",overflow:"hidden"}}>
+        <div style={{background:`linear-gradient(135deg,${C.dark} 0%,#1a3a3a 100%)`,padding:"28px 36px",display:"flex",alignItems:"center",gap:20}}>
           <Logo size={56}/>
           <div>
-            <h1 style={{ color: C.yellow, fontSize:20, margin:"0 0 4px", fontWeight:800 }}>Согласие на обработку персональных данных</h1>
-            <p style={{ color: C.teal, fontSize:13, margin:0 }}>В соответствии с Федеральным законом № 152-ФЗ</p>
+            <h1 style={{color:C.yellow,fontSize:20,margin:"0 0 4px",fontWeight:800}}>Согласие на обработку персональных данных</h1>
+            <p style={{color:C.teal,fontSize:13,margin:0}}>В соответствии с Федеральным законом № 152-ФЗ</p>
           </div>
         </div>
-        <div style={{ padding:"28px 36px" }}>
-          <div style={{ background: C.tealLight, borderRadius:10, padding:"12px 18px", marginBottom:20, fontSize:12, color: C.gray, lineHeight:1.8 }}>
-            <b style={{ color: C.tealDark }}>Оператор персональных данных:</b><br/>
-            ИП Каримов Ринат Алишерович · ИНН 502239463615<br/>
-            143401, Московская область, г. Красногорск, бульвар Павшинский, д. 3<br/>
-            Руководитель: Каримов Ринат Алишерович
+        <div style={{padding:"28px 36px"}}>
+          <div style={{background:C.tealLight,borderRadius:10,padding:"12px 18px",marginBottom:20,fontSize:12,color:C.gray,lineHeight:1.8}}>
+            <b style={{color:C.tealDark}}>Оператор:</b> ИП Каримов Ринат Алишерович · ИНН 502239463615<br/>
+            143401, Московская область, г. Красногорск, бульвар Павшинский, д. 3
           </div>
-          <div style={{ background:"#f8fefe", border:`1px solid ${C.tealLight}`, borderRadius:12, padding:"20px 24px", marginBottom:20, maxHeight:320, overflowY:"auto", fontSize:13, color:"#333", lineHeight:1.8 }}>
-            <p style={{ fontWeight:700, marginBottom:12, fontSize:14, textAlign:"center" }}>СОГЛАСИЕ НА ОБРАБОТКУ ПЕРСОНАЛЬНЫХ ДАННЫХ</p>
-            <p>Я, нижеподписавшийся(-аяся), являясь родителем (законным представителем) несовершеннолетнего ребёнка, в соответствии с требованиями Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных», свободно, своей волей и в своём интересе даю своё согласие <b>ИП Каримов Ринат Алишерович</b> (ИНН 502239463615, 143401, Московская область, г. Красногорск, бульвар Павшинский, д. 3; далее — Оператор) на обработку моих персональных данных и персональных данных моего ребёнка.</p>
-            <p style={{ marginTop:12, fontWeight:600 }}>1. Цели обработки:</p>
-            <p>проведение диагностики уровня речевого и психического развития ребёнка; составление индивидуальных рекомендаций и программ коррекции; ведение документации специалистов центра.</p>
-            <p style={{ marginTop:12, fontWeight:600 }}>2. Перечень действий:</p>
-            <p>сбор, запись, систематизация, накопление, хранение, уточнение, извлечение, использование, обезличивание, блокирование, удаление, уничтожение персональных данных с использованием средств автоматизации.</p>
-            <p style={{ marginTop:12, fontWeight:600 }}>3. Срок действия:</p>
-            <p>До достижения целей обработки либо до момента отзыва. Отзыв — письменное заявление Оператору. Данные уничтожаются в течение 30 дней.</p>
-            <p style={{ marginTop:12, fontWeight:600 }}>4. Права субъекта:</p>
-            <p>Право на доступ, уточнение, блокирование или уничтожение персональных данных; право на обжалование действий Оператора в Роскомнадзор (ст. 14 Федерального закона № 152-ФЗ).</p>
+          <div style={{background:"#f8fefe",border:`1px solid ${C.tealLight}`,borderRadius:12,padding:"20px 24px",marginBottom:20,maxHeight:280,overflowY:"auto",fontSize:13,color:"#333",lineHeight:1.8}}>
+            <p style={{fontWeight:700,marginBottom:12,fontSize:14,textAlign:"center"}}>СОГЛАСИЕ НА ОБРАБОТКУ ПЕРСОНАЛЬНЫХ ДАННЫХ</p>
+            <p>Я, являясь родителем (законным представителем) несовершеннолетнего ребёнка, в соответствии с Федеральным законом от 27.07.2006 № 152-ФЗ, даю согласие <b>ИП Каримов Ринат Алишерович</b> на обработку персональных данных в целях диагностики и составления рекомендаций.</p>
+            <p style={{marginTop:10,fontWeight:600}}>Перечень данных:</p>
+            <p>ФИО ребёнка и родителя, дата рождения, сведения о здоровье, семейный анамнез, данные о развитии ребёнка.</p>
+            <p style={{marginTop:10,fontWeight:600}}>Срок и отзыв:</p>
+            <p>До достижения целей обработки. Отзыв — письменное заявление Оператору. Данные уничтожаются в течение 30 дней.</p>
           </div>
-          <div style={{ marginBottom:16 }}>
-            <label style={{ display:"block", fontSize:13, fontWeight:600, color: C.dark, marginBottom:6 }}>
-              ФИО родителя (законного представителя) <span style={{ color:"#e84545" }}>*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="Например: Иванова Мария Петровна"
-              value={parentName}
-              onChange={e => { setParentName(e.target.value); setNameErr(false); }}
-              style={{ width:"100%", border:`1.5px solid ${nameErr ? "#e84545" : parentName ? C.teal : C.grayBorder}`, borderRadius:8, padding:"11px 14px", fontSize:14, color: C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}
-            />
-            {nameErr && <p style={{ color:"#e84545", fontSize:12, margin:"4px 0 0" }}>Пожалуйста, укажите ФИО</p>}
+          <div style={{marginBottom:16}}>
+            <label style={{display:"block",fontSize:13,fontWeight:600,color:C.dark,marginBottom:6}}>ФИО родителя (законного представителя) <span style={{color:"#e84545"}}>*</span></label>
+            <input type="text" placeholder="Например: Иванова Мария Петровна" value={parentName}
+              onChange={e=>{setParentName(e.target.value);setNameErr(false);}}
+              style={{...inputStyle,borderColor:nameErr?"#e84545":parentName?C.teal:C.grayBorder}}/>
+            {nameErr&&<p style={{color:"#e84545",fontSize:12,margin:"4px 0 0"}}>Пожалуйста, укажите ФИО</p>}
           </div>
-          <div
-            onClick={() => setChecked(p => !p)}
-            style={{ display:"flex", alignItems:"flex-start", gap:12, cursor:"pointer", marginBottom:24, padding:"14px 18px", background: checked ? "#e8f8f8" : C.grayLight, borderRadius:10, border:`2px solid ${checked ? C.teal : C.grayBorder}`, transition:"all .2s" }}
-          >
-            <div style={{ width:22, height:22, borderRadius:5, border:`2px solid ${checked ? C.teal : "#aaa"}`, background: checked ? C.teal : "#fff", flexShrink:0, marginTop:1, display:"flex", alignItems:"center", justifyContent:"center" }}>
-              {checked && <span style={{ color:"#fff", fontSize:14, fontWeight:900 }}>✓</span>}
+          <div onClick={()=>setChecked(p=>!p)} style={{display:"flex",alignItems:"flex-start",gap:12,cursor:"pointer",marginBottom:24,padding:"14px 18px",background:checked?"#e8f8f8":C.grayLight,borderRadius:10,border:`2px solid ${checked?C.teal:C.grayBorder}`,transition:"all .2s"}}>
+            <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${checked?C.teal:"#aaa"}`,background:checked?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {checked&&<span style={{color:"#fff",fontSize:14,fontWeight:900}}>✓</span>}
             </div>
-            <p style={{ margin:0, fontSize:13, color:"#333", lineHeight:1.6 }}>
-              Я ознакомился(-ась) с условиями обработки персональных данных и даю своё согласие на обработку персональных данных своих и своего ребёнка в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».
-            </p>
+            <p style={{margin:0,fontSize:13,color:"#333",lineHeight:1.6}}>Я ознакомился(-ась) с условиями и даю согласие на обработку персональных данных своих и своего ребёнка в соответствии с Федеральным законом № 152-ФЗ.</p>
           </div>
-          <Btn onClick={handle} variant="primary" disabled={!checked || !parentName.trim()} style={{ fontSize:15, padding:"13px 36px", opacity: (checked && parentName.trim()) ? 1 : 0.4 }}>
+          <Btn onClick={handle} variant="primary" disabled={!checked||!parentName.trim()} style={{fontSize:15,padding:"13px 36px",opacity:(checked&&parentName.trim())?1:0.4}}>
             Согласен(на) — перейти к анкете →
           </Btn>
         </div>
@@ -670,7 +568,7 @@ function ConsentScreen({ onAccept }) {
   );
 }
 
-// ─── Client form ──────────────────────────────────────────────────────────────
+// ─── ClientForm ───────────────────────────────────────────────────────────────
 function ClientForm({ onSubmit }) {
   const [step, setStep] = useState("consent");
   const [curSec, setCurSec] = useState(0);
@@ -679,361 +577,221 @@ function ClientForm({ onSubmit }) {
   const [familyCurSec, setFamilyCurSec] = useState(0);
   const [familyAnswers, setFamilyAnswers] = useState({});
   const topRef = useRef(null);
+  const filled = ALL_FIELDS.filter(f=>answers[f.id]).length;
+  const pct = Math.round(filled/TOTAL*100);
+  const handleChange = (id,val) => setAnswers(p=>({...p,[id]:val}));
+  const goSec = (n) => { setCurSec(n); setTimeout(()=>topRef.current?.scrollIntoView({behavior:"smooth"}),50); };
 
-  const filled = ALL_FIELDS.filter(f => answers[f.id]).length;
-  const pct = Math.round(filled / TOTAL * 100);
-
-  const handleChange = (id, val) => setAnswers(p => ({ ...p, [id]: val }));
-  const goSec = (n) => { setCurSec(n); setTimeout(() => topRef.current?.scrollIntoView({ behavior:"smooth" }), 50); };
-
-  if (step === "consent") return <ConsentScreen onAccept={(name) => { setParentName(name); setStep("welcome"); }} />;
-
-  if (step === "done") return (
-    <div style={{ maxWidth:640, margin:"40px auto", padding:"0 20px", textAlign:"center" }}>
-      <div style={{ background: C.white, borderRadius:20, padding:"48px 40px", boxShadow:"0 4px 24px rgba(42,181,181,0.12)", marginBottom:20 }}>
-        <Logo size={72} />
-        <div style={{ fontSize:52, marginBottom:12, marginTop:16 }}>✅</div>
-        <h2 style={{ color: C.dark, fontSize:22, marginBottom:8 }}>Анкета отправлена!</h2>
-        <p style={{ color: C.grayMid, fontSize:14, marginBottom:0 }}>Спасибо! Первая анкета успешно передана специалисту.</p>
+  if(step==="consent") return <ConsentScreen onAccept={(name)=>{setParentName(name);setStep("welcome");}}/>;
+  if(step==="done") return (
+    <div style={{maxWidth:640,margin:"40px auto",padding:"0 20px",textAlign:"center"}}>
+      <div style={{background:C.white,borderRadius:20,padding:"48px 40px",boxShadow:"0 4px 24px rgba(42,181,181,0.12)",marginBottom:20}}>
+        <Logo size={72}/><div style={{fontSize:52,marginBottom:12,marginTop:16}}>✅</div>
+        <h2 style={{color:C.dark,fontSize:22,marginBottom:8}}>Анкета отправлена!</h2>
+        <p style={{color:C.grayMid,fontSize:14}}>Спасибо! Первая анкета успешно передана специалисту.</p>
       </div>
-
-      {/* Блок перехода ко второй анкете */}
-      <div style={{ background: "linear-gradient(135deg, #2a1a3a 0%, #1a2a2a 100%)", borderRadius:20, padding:"32px 36px", boxShadow:"0 4px 24px rgba(123,94,167,0.25)" }}>
-        <div style={{ fontSize:40, marginBottom:12 }}>🧬</div>
-        <h3 style={{ color: C.yellow, fontSize:20, fontWeight:800, marginBottom:8 }}>Необходимо заполнить вторую анкету</h3>
-        <p style={{ color:"rgba(255,255,255,0.75)", fontSize:14, marginBottom:24, lineHeight:1.7 }}>
-          Для полноценной диагностики специалисту также нужна <b style={{color:"#9b7fd4"}}>Анкета семейно-наследственного фона</b>.<br/>
-          Пожалуйста, не закрывайте страницу и заполните её прямо сейчас — это займёт 5–10 минут.
+      <div style={{background:"linear-gradient(135deg,#2a1a3a,#1a2a2a)",borderRadius:20,padding:"32px 36px",boxShadow:"0 4px 24px rgba(123,94,167,0.25)"}}>
+        <div style={{fontSize:40,marginBottom:12}}>🧬</div>
+        <h3 style={{color:C.yellow,fontSize:20,fontWeight:800,marginBottom:8}}>Необходимо заполнить вторую анкету</h3>
+        <p style={{color:"rgba(255,255,255,0.75)",fontSize:14,marginBottom:24,lineHeight:1.7}}>
+          Для полноценной диагностики специалисту также нужна <b style={{color:"#9b7fd4"}}>Анкета семейно-наследственного фона</b>.
         </p>
-        <div style={{ display:"flex", gap:12, justifyContent:"center", flexWrap:"wrap" }}>
-          <Btn
-            onClick={() => { setStep("family"); setCurSec(0); setAnswers({}); }}
-            variant="yellow"
-            style={{ fontSize:15, padding:"14px 32px" }}
-          >
-            Заполнить анкету семейного фона →
-          </Btn>
-        </div>
-        <p style={{ color:"rgba(255,255,255,0.35)", fontSize:11, marginTop:16 }}>
-          Данные конфиденциальны и используются только специалистами центра
-        </p>
+        <Btn onClick={()=>{setStep("family");setFamilyCurSec(0);setFamilyAnswers({});}} variant="yellow" style={{fontSize:15,padding:"14px 32px"}}>
+          Заполнить анкету семейного фона →
+        </Btn>
       </div>
     </div>
   );
-
-  if (step === "familyDone") return (
-    <DocumentsScreen
-      parentName={parentName}
-      childName={answers["s0_1"] || ""}
-      onSubmit={async (docData) => {
-        await onSubmit(docData);
-        setStep("allDone");
-      }}
-    />
+  if(step==="familyDone") return (
+    <DocumentsScreen parentName={parentName} childName={answers["s0_1"]||""}
+      onSubmit={async(docData)=>{await onSubmit({...docData,answers:{...docData.answers,s0_1:answers["s0_1"]||""}});setStep("allDone");}}/>
   );
-
-  if (step === "allDone") return (
-    <div style={{ maxWidth:600, margin:"60px auto", padding:"0 20px", textAlign:"center" }}>
-      <div style={{ background: C.white, borderRadius:20, padding:"60px 40px", boxShadow:"0 4px 24px rgba(42,181,181,0.12)" }}>
-        <Logo size={80} />
-        <div style={{ fontSize:56, marginBottom:16, marginTop:16 }}>🎉</div>
-        <h2 style={{ color: C.dark, fontSize:24, marginBottom:10 }}>Всё готово!</h2>
-        <p style={{ color: C.grayMid, fontSize:15, marginBottom:8 }}>Обе анкеты и список документов успешно переданы специалисту.</p>
-        <p style={{ color: C.teal, fontSize:13 }}>Специалист свяжется с вами для уточнения деталей диагностики.</p>
+  if(step==="allDone") return (
+    <div style={{maxWidth:600,margin:"60px auto",padding:"0 20px",textAlign:"center"}}>
+      <div style={{background:C.white,borderRadius:20,padding:"60px 40px",boxShadow:"0 4px 24px rgba(42,181,181,0.12)"}}>
+        <Logo size={80}/><div style={{fontSize:56,marginBottom:16,marginTop:16}}>🎉</div>
+        <h2 style={{color:C.dark,fontSize:24,marginBottom:10}}>Всё готово!</h2>
+        <p style={{color:C.grayMid,fontSize:15,marginBottom:8}}>Обе анкеты и список документов успешно переданы специалисту.</p>
+        <p style={{color:C.teal,fontSize:13}}>Специалист свяжется с вами для уточнения деталей диагностики.</p>
       </div>
     </div>
   );
-
-  if (step === "welcome") return <WelcomeScreen onStart={() => setStep("form")} />;
-
-  // ── Семейный фон (вторая анкета) ──
-  if (step === "family") {
-    const FSECS = typeof FAMILY_SECTIONS !== "undefined" ? FAMILY_SECTIONS : [];
-    const FALL = FSECS.flatMap(s => s.fields);
-    const fFilled = FALL.filter(f => familyAnswers[f.id]).length;
-    const fPct = FALL.length > 0 ? Math.round(fFilled / FALL.length * 100) : 0;
-    const fSec = FSECS[familyCurSec] || null;
-    const goFSec = (n) => { setFamilyCurSec(n); setTimeout(() => topRef.current?.scrollIntoView({ behavior:"smooth" }), 50); };
-
-    if (!fSec) return null;
-
+  if(step==="welcome") return <WelcomeScreen onStart={()=>setStep("form")}/>;
+  if(step==="family") {
+    const FSECS = FAMILY_SECTIONS;
+    const FALL = FSECS.flatMap(s=>s.fields);
+    const fFilled = FALL.filter(f=>familyAnswers[f.id]).length;
+    const fPct = FALL.length>0 ? Math.round(fFilled/FALL.length*100) : 0;
+    const fSec = FSECS[familyCurSec]||null;
+    const goFSec = (n)=>{setFamilyCurSec(n);setTimeout(()=>topRef.current?.scrollIntoView({behavior:"smooth"}),50);};
+    if(!fSec) return null;
     return (
-      <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
+      <div style={{maxWidth:820,margin:"0 auto",padding:"28px 20px"}}>
         <div ref={topRef}/>
-        <div style={{ background:"linear-gradient(135deg,#2a1a3a,#1a2a2a)", borderRadius:14, padding:"16px 24px", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
-          <span style={{ fontSize:28 }}>🧬</span>
+        <div style={{background:"linear-gradient(135deg,#2a1a3a,#1a2a2a)",borderRadius:14,padding:"16px 24px",marginBottom:20,display:"flex",alignItems:"center",gap:14}}>
+          <span style={{fontSize:28}}>🧬</span>
           <div>
-            <p style={{ color:C.yellow, fontWeight:700, fontSize:15, margin:0 }}>Анкета семейно-наследственного фона</p>
-            <p style={{ color:"rgba(255,255,255,0.6)", fontSize:12, margin:0 }}>Вторая анкета — шаг {familyCurSec+1} из {FSECS.length}</p>
+            <p style={{color:C.yellow,fontWeight:700,fontSize:15,margin:0}}>Анкета семейно-наследственного фона</p>
+            <p style={{color:"rgba(255,255,255,0.6)",fontSize:12,margin:"4px 0 0"}}>Вторая анкета — шаг {familyCurSec+1} из {FSECS.length}</p>
           </div>
-          <span style={{ marginLeft:"auto", color:"#9b7fd4", fontWeight:700, fontSize:14 }}>{fPct}%</span>
+          <span style={{marginLeft:"auto",color:"#9b7fd4",fontWeight:700,fontSize:14}}>{fPct}%</span>
         </div>
-        <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"16px 20px", marginBottom:20 }}>
+        <div style={{background:C.white,borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",padding:"16px 20px",marginBottom:20}}>
           <ProgressBar pct={fPct} color="linear-gradient(90deg,#7b5ea7,#f5c842)" height={8}/>
-          <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:12 }}>
-            {FSECS.map((s, i) => {
-              const sf = s.fields.filter(f => familyAnswers[f.id]).length;
-              const done = sf === s.fields.length;
-              const active = familyCurSec === i;
-              return (
-                <button key={s.id} onClick={() => goFSec(i)} style={{
-                  padding:"5px 12px", borderRadius:20, cursor:"pointer", fontSize:12, fontWeight:600,
-                  border:`2px solid ${active?s.color:done?s.color+"66":C.grayBorder}`,
-                  background:active?s.color:done?s.color+"15":C.grayLight,
-                  color:active?"#fff":done?s.color:C.grayMid,
-                }}>{s.icon} {sf}/{s.fields.length}</button>
-              );
-            })}
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:12}}>
+            {FSECS.map((s,i)=>{const sf=s.fields.filter(f=>familyAnswers[f.id]).length;const done=sf===s.fields.length;const active=familyCurSec===i;return(<button key={s.id} onClick={()=>goFSec(i)} style={{padding:"5px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,border:`2px solid ${active?s.color:done?s.color+"66":C.grayBorder}`,background:active?s.color:done?s.color+"15":C.grayLight,color:active?"#fff":done?s.color:C.grayMid}}>{s.icon} {sf}/{s.fields.length}</button>);})}
           </div>
         </div>
-        <SectionBlock section={fSec} answers={familyAnswers} onChange={(id,val) => setFamilyAnswers(p => ({...p,[id]:val}))}/>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:4 }}>
-          <Btn onClick={() => goFSec(familyCurSec-1)} variant="ghost" disabled={familyCurSec===0}>← Назад</Btn>
-          <span style={{ fontSize:13, color:C.grayMid }}>Раздел {familyCurSec+1} из {FSECS.length}</span>
-          {familyCurSec < FSECS.length-1
-            ? <Btn onClick={() => goFSec(familyCurSec+1)} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
-            : <Btn onClick={async () => {
-                const familySub = { id: Date.now(), date: new Date().toISOString(), answers: {...familyAnswers}, parentName, formType:"family" };
-                await onSubmit(familySub);
-                setStep("familyDone");
-              }} variant="yellow">✅ Отправить обе анкеты</Btn>
+        <SectionBlock section={fSec} answers={familyAnswers} onChange={(id,val)=>setFamilyAnswers(p=>({...p,[id]:val}))}/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+          <Btn onClick={()=>goFSec(familyCurSec-1)} variant="ghost" disabled={familyCurSec===0}>← Назад</Btn>
+          <span style={{fontSize:13,color:C.grayMid}}>Раздел {familyCurSec+1} из {FSECS.length}</span>
+          {familyCurSec<FSECS.length-1
+            ?<Btn onClick={()=>goFSec(familyCurSec+1)} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
+            :<Btn onClick={async()=>{const sub={id:Date.now(),date:new Date().toISOString(),answers:{...familyAnswers},parentName,formType:"family"};await onSubmit(sub);setStep("familyDone");}} variant="yellow">✅ Отправить обе анкеты</Btn>
           }
         </div>
       </div>
     );
   }
-
+  const sec = SECTIONS[curSec];
   return (
-    <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
-      <div ref={topRef} />
-
-      {/* Progress panel */}
-      <div style={{ background: C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"20px 24px", marginBottom:20 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-          <span style={{ fontWeight:700, color: C.dark, fontSize:14 }}>Общий прогресс</span>
-          <span style={{ color: C.teal, fontWeight:700, fontSize:14 }}>{pct}% · {filled}/{TOTAL}</span>
+    <div style={{maxWidth:820,margin:"0 auto",padding:"28px 20px"}}>
+      <div ref={topRef}/>
+      <div style={{background:C.white,borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",padding:"20px 24px",marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+          <span style={{fontWeight:700,color:C.dark,fontSize:14}}>Общий прогресс</span>
+          <span style={{color:C.teal,fontWeight:700,fontSize:14}}>{pct}% · {filled}/{TOTAL}</span>
         </div>
-        <ProgressBar pct={pct} color={`linear-gradient(90deg, ${C.teal}, ${C.yellow})`} height={8} />
-        <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:14 }}>
-          {SECTIONS.map((s, i) => {
-            const sf = s.fields.filter(f => answers[f.id]).length;
-            const done = sf === s.fields.length;
-            const active = curSec === i;
-            return (
-              <button key={s.id} onClick={() => goSec(i)} style={{
-                padding:"5px 12px", borderRadius:20, cursor:"pointer", fontSize:12, fontWeight:600, transition:"all .2s",
-                border: `2px solid ${active ? s.color : done ? s.color+"66" : C.grayBorder}`,
-                background: active ? s.color : done ? s.color+"15" : C.grayLight,
-                color: active ? "#fff" : done ? s.color : C.grayMid,
-              }}>
-                {s.icon} {sf}/{s.fields.length}
-              </button>
-            );
-          })}
+        <ProgressBar pct={pct} color={`linear-gradient(90deg,${C.teal},${C.yellow})`} height={8}/>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:14}}>
+          {SECTIONS.map((s,i)=>{const sf=s.fields.filter(f=>answers[f.id]).length;const done=sf===s.fields.length;const active=curSec===i;return(<button key={s.id} onClick={()=>goSec(i)} style={{padding:"5px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,border:`2px solid ${active?s.color:done?s.color+"66":C.grayBorder}`,background:active?s.color:done?s.color+"15":C.grayLight,color:active?"#fff":done?s.color:C.grayMid}}>{s.icon} {sf}/{s.fields.length}</button>);})}
         </div>
       </div>
-
-      {/* Section */}
-      <SectionBlock section={SECTIONS[curSec]} answers={answers} onChange={handleChange} />
-
-      {/* Nav buttons */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:4 }}>
-        <Btn onClick={() => goSec(curSec - 1)} variant="ghost" disabled={curSec === 0}>← Назад</Btn>
-        <span style={{ fontSize:13, color: C.grayMid }}>Раздел {curSec + 1} из {SECTIONS.length}</span>
-        {curSec < SECTIONS.length - 1
-          ? <Btn onClick={() => goSec(curSec + 1)} variant="primary">Далее →</Btn>
-          : <Btn onClick={() => { onSubmit({ id: Date.now(), date: new Date().toISOString(), answers, parentName }); setStep("done"); }} variant="yellow">✅ Отправить анкету</Btn>
+      <SectionBlock section={sec} answers={answers} onChange={handleChange}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+        <Btn onClick={()=>goSec(curSec-1)} variant="ghost" disabled={curSec===0}>← Назад</Btn>
+        <span style={{fontSize:13,color:C.grayMid}}>Раздел {curSec+1} из {SECTIONS.length}</span>
+        {curSec<SECTIONS.length-1
+          ?<Btn onClick={()=>goSec(curSec+1)} variant="primary">Далее →</Btn>
+          :<Btn onClick={()=>{onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"anamnez"});setStep("done");}} variant="yellow">✅ Отправить анкету</Btn>
         }
       </div>
     </div>
   );
 }
 
-// ─── Family Form ─────────────────────────────────────────────────────────────
+// ─── FamilyForm (отдельная вкладка) ──────────────────────────────────────────
 function FamilyForm({ onSubmit }) {
   const [step, setStep] = useState("consent");
   const [curSec, setCurSec] = useState(0);
   const [answers, setAnswers] = useState({});
   const [parentName, setParentName] = useState("");
-  const [familyCurSec, setFamilyCurSec] = useState(0);
-  const [familyAnswers, setFamilyAnswers] = useState({});
   const topRef = useRef(null);
-
-  const filled = ALL_FAMILY_FIELDS.filter(f => answers[f.id]).length;
-  const pct = Math.round(filled / FAMILY_TOTAL * 100);
-  const handleChange = (id, val) => setAnswers(p => ({ ...p, [id]: val }));
-  const goSec = (n) => { setCurSec(n); setTimeout(() => topRef.current?.scrollIntoView({ behavior:"smooth" }), 50); };
-
-  if (step === "consent") return <ConsentScreen onAccept={(name) => { setParentName(name); setStep("form"); }} />;
-
-  if (step === "done") return (
-    <div style={{ maxWidth:600, margin:"60px auto", padding:"0 20px", textAlign:"center" }}>
-      <div style={{ background: C.white, borderRadius:20, padding:"60px 40px", boxShadow:"0 4px 24px rgba(42,181,181,0.12)" }}>
-        <Logo size={80} />
-        <div style={{ fontSize:56, marginBottom:16, marginTop:16 }}>✅</div>
-        <h2 style={{ color: C.dark, fontSize:24, marginBottom:10 }}>Анкета отправлена!</h2>
-        <p style={{ color: C.grayMid, fontSize:15 }}>Спасибо! Ваши данные успешно переданы специалисту.</p>
+  const filled = ALL_FAMILY_FIELDS.filter(f=>answers[f.id]).length;
+  const pct = Math.round(filled/FAMILY_TOTAL*100);
+  const handleChange = (id,val) => setAnswers(p=>({...p,[id]:val}));
+  const goSec = (n) => {setCurSec(n);setTimeout(()=>topRef.current?.scrollIntoView({behavior:"smooth"}),50);};
+  if(step==="consent") return <ConsentScreen onAccept={(name)=>{setParentName(name);setStep("form");}}/>;
+  if(step==="done") return (
+    <div style={{maxWidth:600,margin:"60px auto",padding:"0 20px",textAlign:"center"}}>
+      <div style={{background:C.white,borderRadius:20,padding:"60px 40px",boxShadow:"0 4px 24px rgba(42,181,181,0.12)"}}>
+        <Logo size={80}/><div style={{fontSize:56,marginBottom:16,marginTop:16}}>✅</div>
+        <h2 style={{color:C.dark,fontSize:24,marginBottom:10}}>Анкета отправлена!</h2>
+        <p style={{color:C.grayMid,fontSize:15}}>Спасибо! Ваши данные успешно переданы специалисту.</p>
       </div>
     </div>
   );
-
   const sec = FAMILY_SECTIONS[curSec];
-
   return (
-    <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
-      <div ref={topRef} />
-      <div style={{ background: C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"20px 24px", marginBottom:20 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-          <span style={{ fontWeight:700, color: C.dark, fontSize:14 }}>Общий прогресс</span>
-          <span style={{ color: C.teal, fontWeight:700, fontSize:14 }}>{pct}% · {filled}/{FAMILY_TOTAL}</span>
+    <div style={{maxWidth:820,margin:"0 auto",padding:"28px 20px"}}>
+      <div ref={topRef}/>
+      <div style={{background:C.white,borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",padding:"20px 24px",marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+          <span style={{fontWeight:700,color:C.dark,fontSize:14}}>Общий прогресс</span>
+          <span style={{color:"#7b5ea7",fontWeight:700,fontSize:14}}>{pct}% · {filled}/{FAMILY_TOTAL}</span>
         </div>
-        <ProgressBar pct={pct} color={`linear-gradient(90deg, ${C.teal}, ${C.yellow})`} height={8} />
-        <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:14 }}>
-          {FAMILY_SECTIONS.map((s, i) => {
-            const sf = s.fields.filter(f => answers[f.id]).length;
-            const done = sf === s.fields.length;
-            const active = curSec === i;
-            return (
-              <button key={s.id} onClick={() => goSec(i)} style={{
-                padding:"5px 12px", borderRadius:20, cursor:"pointer", fontSize:12, fontWeight:600, transition:"all .2s",
-                border: `2px solid ${active ? s.color : done ? s.color+"66" : C.grayBorder}`,
-                background: active ? s.color : done ? s.color+"15" : C.grayLight,
-                color: active ? "#fff" : done ? s.color : C.grayMid,
-              }}>
-                {s.icon} {sf}/{s.fields.length}
-              </button>
-            );
-          })}
+        <ProgressBar pct={pct} color="linear-gradient(90deg,#7b5ea7,#f5c842)" height={8}/>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:14}}>
+          {FAMILY_SECTIONS.map((s,i)=>{const sf=s.fields.filter(f=>answers[f.id]).length;const done=sf===s.fields.length;const active=curSec===i;return(<button key={s.id} onClick={()=>goSec(i)} style={{padding:"5px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,border:`2px solid ${active?s.color:done?s.color+"66":C.grayBorder}`,background:active?s.color:done?s.color+"15":C.grayLight,color:active?"#fff":done?s.color:C.grayMid}}>{s.icon} {sf}/{s.fields.length}</button>);})}
         </div>
       </div>
-
-      <SectionBlock section={sec} answers={answers} onChange={handleChange} />
-
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:4 }}>
-        <Btn onClick={() => goSec(curSec - 1)} variant="ghost" disabled={curSec === 0}>← Назад</Btn>
-        <span style={{ fontSize:13, color: C.grayMid }}>Раздел {curSec + 1} из {FAMILY_SECTIONS.length}</span>
-        {curSec < FAMILY_SECTIONS.length - 1
-          ? <Btn onClick={() => goSec(curSec + 1)} variant="primary">Далее →</Btn>
-          : <Btn onClick={() => { onSubmit({ id: Date.now(), date: new Date().toISOString(), answers, parentName, formType:"family" }); setStep("done"); }} variant="yellow">✅ Отправить анкету</Btn>
+      <SectionBlock section={sec} answers={answers} onChange={handleChange}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+        <Btn onClick={()=>goSec(curSec-1)} variant="ghost" disabled={curSec===0}>← Назад</Btn>
+        <span style={{fontSize:13,color:C.grayMid}}>Раздел {curSec+1} из {FAMILY_SECTIONS.length}</span>
+        {curSec<FAMILY_SECTIONS.length-1
+          ?<Btn onClick={()=>goSec(curSec+1)} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
+          :<Btn onClick={()=>{onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"family"});setStep("done");}} variant="yellow">✅ Отправить анкету</Btn>
         }
       </div>
     </div>
   );
 }
 
-// ─── Documents Screen ────────────────────────────────────────────────────────
-function DocumentsScreen({ parentName, childName, onSubmit, prevChecked = {}, prevDocs = null }) {
-  const [checked, setChecked] = useState(prevChecked || {});
+// ─── DocumentsScreen ──────────────────────────────────────────────────────────
+function DocumentsScreen({ parentName, childName, onSubmit, prevChecked={}, prevDocs=null }) {
+  const [checked, setChecked] = useState(prevChecked||{});
   const [files, setFiles] = useState({});
   const [uploading, setUploading] = useState(false);
   const [comment, setComment] = useState("");
-
-  const toggleCheck = (id) => setChecked(p => ({ ...p, [id]: !p[id] }));
-
-  const handleFile = (id, e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setFiles(p => ({ ...p, [id]: { name: f.name, type: f.type, size: f.size, data: ev.target.result } }));
-    };
-    reader.readAsDataURL(f);
-  };
-
-  const removeFile = (id) => setFiles(p => { const n = {...p}; delete n[id]; return n; });
-
+  const toggleCheck = (id) => setChecked(p=>({...p,[id]:!p[id]}));
+  const handleFile = (id,e) => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=(ev)=>{setFiles(p=>({...p,[id]:{name:f.name,type:f.type,size:f.size,data:ev.target.result}}));}; r.readAsDataURL(f); };
+  const removeFile = (id) => setFiles(p=>{const n={...p};delete n[id];return n;});
   const totalChecked = Object.values(checked).filter(Boolean).length;
   const totalFiles = Object.keys(files).length;
-  const allItems = DOCUMENTS.flatMap(d => d.items);
-
+  const allItems = DOCUMENTS.flatMap(d=>d.items);
   const handleSubmit = async () => {
     setUploading(true);
-    const docData = {
-      id: Date.now(),
-      date: new Date().toISOString(),
-      parentName,
-      childName,
-      checkedDocs: checked,
-      uploadedFiles: Object.entries(files).map(([id, f]) => ({
-        docId: id,
-        fileName: f.name,
-        fileType: f.type,
-        fileSize: f.size,
-        fileData: f.data,
-      })),
-      comment,
-      formType: "documents",
-    };
+    const docData = { id:Date.now(), date:new Date().toISOString(), parentName, childName, checkedDocs:checked, uploadedFiles:Object.entries(files).map(([id,f])=>({docId:id,fileName:f.name,fileType:f.type,fileSize:f.size,fileData:f.data})), comment, formType:"documents" };
     await onSubmit(docData);
     setUploading(false);
   };
-
   return (
-    <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
-      {/* Шапка */}
-      <div style={{ background:"linear-gradient(135deg,#1a2a2a,#2a1a1a)", borderRadius:16, padding:"24px 28px", marginBottom:20 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:12 }}>
-          <span style={{ fontSize:32 }}>📋</span>
+    <div style={{maxWidth:820,margin:"0 auto",padding:"28px 20px"}}>
+      <div style={{background:"linear-gradient(135deg,#1a2a2a,#2a1a1a)",borderRadius:16,padding:"24px 28px",marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
+          <span style={{fontSize:32}}>📋</span>
           <div>
-            <h2 style={{ color: C.yellow, fontSize:18, fontWeight:800, margin:0 }}>Список необходимых документов</h2>
-            <p style={{ color:"rgba(255,255,255,0.6)", fontSize:12, margin:"4px 0 0" }}>Шаг 3 из 3 — перед диагностическим консилиумом</p>
+            <h2 style={{color:C.yellow,fontSize:18,fontWeight:800,margin:0}}>Список необходимых документов</h2>
+            <p style={{color:"rgba(255,255,255,0.6)",fontSize:12,margin:"4px 0 0"}}>Перед диагностическим консилиумом</p>
           </div>
         </div>
-        <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:10, padding:"14px 18px", fontSize:13, color:"rgba(255,255,255,0.8)", lineHeight:1.7 }}>
-          Уважаемые родители! Без полного пакета документов мы не сможем начать работу в день диагностики. Все материалы необходимо прислать <b style={{color:C.yellow}}>не позднее чем за 3 суток</b> до начала диагностики. Отметьте галочками что уже есть и прикрепите файлы.
+        <div style={{background:"rgba(255,255,255,0.08)",borderRadius:10,padding:"14px 18px",fontSize:13,color:"rgba(255,255,255,0.8)",lineHeight:1.7}}>
+          Все материалы необходимо прислать <b style={{color:C.yellow}}>не позднее чем за 3 суток</b> до начала диагностики. Отметьте галочками что уже есть и прикрепите файлы.
         </div>
       </div>
-
-      {/* История предыдущей отправки */}
-      {prevDocs && (
-        <div style={{ background:"#fff8e1", borderLeft:`4px solid ${C.yellow}`, borderRadius:"0 12px 12px 0", padding:"14px 18px", marginBottom:16, fontSize:13, color:"#555", lineHeight:1.7 }}>
-          🔄 <b>Найдена предыдущая отправка</b> от {new Date(prevDocs.date).toLocaleDateString("ru-RU")}.<br/>
-          Документы которые вы уже отметили — отмечены галочками. Добавьте недостающие и прикрепите файлы.
-        </div>
-      )}
-      {/* Статус */}
-      {totalChecked > 0 && (
-        <div style={{ background:C.tealLight, borderRadius:10, padding:"10px 16px", marginBottom:16, fontSize:13, color:C.tealDark, fontWeight:600 }}>
-          ✅ Отмечено: {totalChecked} из {allItems.length} · Прикреплено файлов: {totalFiles}
-        </div>
-      )}
-
-      {/* Список документов */}
-      {DOCUMENTS.map(docGroup => (
-        <div key={docGroup.id} style={{ background:C.white, borderRadius:14, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", marginBottom:16, overflow:"hidden" }}>
-          <div style={{ padding:"16px 20px", borderBottom:`2px solid ${docGroup.required ? "#fee2e2" : C.tealLight}`, display:"flex", alignItems:"center", gap:10 }}>
-            <span style={{ fontSize:16, fontWeight:700, color:C.dark }}>{docGroup.category}</span>
-            {docGroup.required && <span style={{ fontSize:11, fontWeight:700, background:"#fee2e2", color:"#e84545", padding:"2px 8px", borderRadius:10 }}>ОБЯЗАТЕЛЬНО</span>}
+      {prevDocs && (<div style={{background:"#fff8e1",borderLeft:`4px solid ${C.yellow}`,borderRadius:"0 12px 12px 0",padding:"14px 18px",marginBottom:16,fontSize:13,color:"#555",lineHeight:1.7}}>🔄 <b>Найдена предыдущая отправка</b> от {new Date(prevDocs.date).toLocaleDateString("ru-RU")}. Ранее отмеченные документы уже отмечены. Добавьте недостающие.</div>)}
+      {totalChecked>0&&(<div style={{background:C.tealLight,borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:C.tealDark,fontWeight:600}}>✅ Отмечено: {totalChecked} из {allItems.length} · Прикреплено файлов: {totalFiles}</div>)}
+      {DOCUMENTS.map(docGroup=>(
+        <div key={docGroup.id} style={{background:C.white,borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",marginBottom:16,overflow:"hidden"}}>
+          <div style={{padding:"16px 20px",borderBottom:`2px solid ${docGroup.required?"#fee2e2":C.tealLight}`,display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:16,fontWeight:700,color:C.dark}}>{docGroup.category}</span>
+            {docGroup.required&&<span style={{fontSize:11,fontWeight:700,background:"#fee2e2",color:"#e84545",padding:"2px 8px",borderRadius:10}}>ОБЯЗАТЕЛЬНО</span>}
           </div>
-          <div style={{ padding:"12px 20px" }}>
-            {docGroup.items.map(item => (
-              <div key={item.id} style={{ marginBottom:14, paddingBottom:14, borderBottom:`1px solid ${C.grayBorder}` }}>
-                {/* Чекбокс и название */}
-                <div
-                  onClick={() => toggleCheck(item.id)}
-                  style={{ display:"flex", alignItems:"flex-start", gap:12, cursor:"pointer", marginBottom:8 }}
-                >
-                  <div style={{ width:22, height:22, borderRadius:5, border:`2px solid ${checked[item.id] ? C.teal : "#ccc"}`, background:checked[item.id] ? C.teal : "#fff", flexShrink:0, marginTop:1, display:"flex", alignItems:"center", justifyContent:"center", transition:"all .2s" }}>
-                    {checked[item.id] && <span style={{ color:"#fff", fontSize:13, fontWeight:900 }}>✓</span>}
+          <div style={{padding:"12px 20px"}}>
+            {docGroup.items.map(item=>(
+              <div key={item.id} style={{marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${C.grayBorder}`}}>
+                <div onClick={()=>toggleCheck(item.id)} style={{display:"flex",alignItems:"flex-start",gap:12,cursor:"pointer",marginBottom:8}}>
+                  <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${checked[item.id]?C.teal:"#ccc"}`,background:checked[item.id]?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
+                    {checked[item.id]&&<span style={{color:"#fff",fontSize:13,fontWeight:900}}>✓</span>}
                   </div>
                   <div>
-                    <p style={{ margin:0, fontSize:14, fontWeight:600, color: checked[item.id] ? C.tealDark : C.dark }}>{item.label}</p>
-                    {item.note && <p style={{ margin:"2px 0 0", fontSize:12, color:C.grayMid }}>{item.note}</p>}
+                    <p style={{margin:0,fontSize:14,fontWeight:600,color:checked[item.id]?C.tealDark:C.dark}}>{item.label}</p>
+                    {item.note&&<p style={{margin:"2px 0 0",fontSize:12,color:C.grayMid}}>{item.note}</p>}
                   </div>
                 </div>
-
-                {/* Загрузка файла */}
-                <div style={{ marginLeft:34 }}>
-                  {files[item.id] ? (
-                    <div style={{ display:"flex", alignItems:"center", gap:8, background:C.tealLight, borderRadius:8, padding:"8px 12px" }}>
-                      <span style={{ fontSize:18 }}>📎</span>
-                      <span style={{ fontSize:13, color:C.tealDark, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{files[item.id].name}</span>
-                      <button onClick={() => removeFile(item.id)} style={{ background:"none", border:"none", color:"#e84545", cursor:"pointer", fontSize:18, padding:0, flexShrink:0 }}>×</button>
+                <div style={{marginLeft:34}}>
+                  {files[item.id]?(
+                    <div style={{display:"flex",alignItems:"center",gap:8,background:C.tealLight,borderRadius:8,padding:"8px 12px"}}>
+                      <span style={{fontSize:18}}>📎</span>
+                      <span style={{fontSize:13,color:C.tealDark,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{files[item.id].name}</span>
+                      <button onClick={()=>removeFile(item.id)} style={{background:"none",border:"none",color:"#e84545",cursor:"pointer",fontSize:18,padding:0}}>×</button>
                     </div>
-                  ) : (
-                    <label style={{ display:"inline-flex", alignItems:"center", gap:6, cursor:"pointer", padding:"6px 14px", background:C.grayLight, borderRadius:8, border:`1px dashed ${C.grayBorder}`, fontSize:12, color:C.grayMid }}>
+                  ):(
+                    <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",padding:"6px 14px",background:C.grayLight,borderRadius:8,border:`1px dashed ${C.grayBorder}`,fontSize:12,color:C.grayMid}}>
                       <span>📎</span> Прикрепить файл или фото
-                      <input type="file" accept="image/*,.pdf,.doc,.docx" style={{ display:"none" }} onChange={e => handleFile(item.id, e)} />
+                      <input type="file" accept="image/*,.pdf,.doc,.docx" style={{display:"none"}} onChange={e=>handleFile(item.id,e)}/>
                     </label>
                   )}
                 </div>
@@ -1042,49 +800,91 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked = {}, pr
           </div>
         </div>
       ))}
-
-      {/* Комментарий */}
-      <div style={{ background:C.white, borderRadius:14, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"20px", marginBottom:20 }}>
-        <p style={{ fontSize:14, fontWeight:600, color:C.dark, marginBottom:8 }}>💬 Дополнительный комментарий (необязательно)</p>
-        <textarea
-          rows={3}
-          value={comment}
-          onChange={e => setComment(e.target.value)}
-          placeholder="Например: анализ ЭЭГ сдаём на следующей неделе, МРТ делали 2 года назад..."
-          style={{ width:"100%", border:`1.5px solid ${C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", resize:"vertical", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}
-        />
+      <div style={{background:C.white,borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",padding:"20px",marginBottom:20}}>
+        <p style={{fontSize:14,fontWeight:600,color:C.dark,marginBottom:8}}>💬 Дополнительный комментарий</p>
+        <textarea rows={3} value={comment} onChange={e=>setComment(e.target.value)} placeholder="Например: анализ ЭЭГ сдаём на следующей неделе..." style={{width:"100%",border:`1.5px solid ${C.grayBorder}`,borderRadius:8,padding:"10px 14px",fontSize:14,color:C.dark,outline:"none",resize:"vertical",boxSizing:"border-box",background:"#fafcfc",fontFamily:"inherit"}}/>
       </div>
-
-      {/* Кнопка отправки */}
-      <div style={{ background:"linear-gradient(135deg,#1a3a2a,#1a2a1a)", borderRadius:14, padding:"24px 28px", textAlign:"center" }}>
-        <p style={{ color:"rgba(255,255,255,0.7)", fontSize:13, marginBottom:16, lineHeight:1.6 }}>
-          Нажимая кнопку вы отправляете список отмеченных документов и прикреплённые файлы администратору центра.
-        </p>
-        <Btn onClick={handleSubmit} variant="yellow" disabled={uploading} style={{ fontSize:15, padding:"14px 36px" }}>
-          {uploading ? "⏳ Отправляем..." : `✅ Отправить документы (${totalChecked} отмечено, ${totalFiles} файлов)`}
+      <div style={{background:"linear-gradient(135deg,#1a3a2a,#1a2a1a)",borderRadius:14,padding:"24px 28px",textAlign:"center"}}>
+        <Btn onClick={handleSubmit} variant="yellow" disabled={uploading} style={{fontSize:15,padding:"14px 36px"}}>
+          {uploading?"⏳ Отправляем...":`✅ Отправить документы (${totalChecked} отмечено, ${totalFiles} файлов)`}
         </Btn>
       </div>
     </div>
   );
 }
 
-// ─── DocsOnlyForm ────────────────────────────────────────────────────────────
-async function loadPreviousDocs(childName) {
+
+async function neonQuery(sql, params = []) {
+  const auth = btoa(`${NEON_USER}:${NEON_PASS}`);
+  const res = await fetch(`https://${NEON_HOST}/api/query`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${auth}`,
+      "Content-Type": "application/json",
+      "Neon-Connection-String": `postgresql://${NEON_USER}:${NEON_PASS}@${NEON_HOST}/${NEON_DB}?sslmode=require&channel_binding=require`,
+    },
+    body: JSON.stringify({ query: sql, params }),
+  });
+  if (!res.ok) throw new Error(`Neon ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+
+async function sendToSheets(submission) {
   try {
-    const name = childName.trim().toLowerCase();
-    const res = await sbFetch(
-      `/rest/v1/ankety?select=*&form_type=eq.documents&order=date.desc`
+    let answers = submission.answers || {};
+    if (submission.formType === "documents") {
+      answers = {
+        checkedDocs: JSON.stringify(submission.checkedDocs || {}),
+        comment: submission.comment || "",
+        fileNames: JSON.stringify((submission.uploadedFiles || []).map(f => ({ docId: f.docId, fileName: f.fileName, fileType: f.fileType }))),
+        fileData: JSON.stringify((submission.uploadedFiles || []).map(f => ({ docId: f.docId, data: f.fileData }))),
+        s0_1: submission.answers?.s0_1 || "",
+      };
+    }
+    await neonQuery(
+      `INSERT INTO ankety (date, answers, parent_name, form_type) VALUES ($1, $2, $3, $4)`,
+      [submission.date || new Date().toISOString(), JSON.stringify(answers), submission.parentName || "", submission.formType || "anamnez"]
     );
-    const data = await res.json();
-    if (!Array.isArray(data)) return null;
-    // Find by child name (case-insensitive)
-    const match = data.find(r => {
+    return true;
+  } catch(e) {
+    console.error("Neon save error:", e);
+    return false;
+  }
+}
+
+
+async function loadFromSheets() {
+  try {
+    const result = await neonQuery(`SELECT id, date, answers, parent_name, form_type FROM ankety ORDER BY date DESC`);
+    return (result.rows || []).map(row => ({
+      id: row[0], date: row[1],
+      answers: typeof row[2] === "string" ? JSON.parse(row[2]) : (row[2] || {}),
+      parent_name: row[3], form_type: row[4],
+    }));
+  } catch(e) {
+    console.error("Neon load error:", e);
+    return [];
+  }
+}
+
+async function loadPreviousDocs_neon(childName) {
+  try {
+    const result = await neonQuery(`SELECT id, date, answers, parent_name, form_type FROM ankety WHERE form_type = $1 ORDER BY date DESC`, ["documents"]);
+    const rows = (result.rows || []).map(row => ({
+      id: row[0], date: row[1],
+      answers: typeof row[2] === "string" ? JSON.parse(row[2]) : (row[2] || {}),
+      parent_name: row[3], form_type: row[4],
+    }));
+    const name = childName.trim().toLowerCase();
+    return rows.find(r => {
       const n = (r.answers?.s0_1 || r.parent_name || "").toLowerCase();
       return n.includes(name) || name.includes(n.split(" ")[0]);
-    });
-    return match || null;
+    }) || null;
   } catch(e) { return null; }
 }
+
+
 
 function DocsOnlyForm({ onSubmit }) {
   const [step, setStep] = useState("info");
@@ -1098,7 +898,7 @@ function DocsOnlyForm({ onSubmit }) {
   const handleSearch = async () => {
     if (!childName.trim() || !parentName.trim()) return;
     setSearching(true);
-    const prev = await loadPreviousDocs(childName);
+    const prev = await loadPreviousDocs_neon(childName);
     if (prev) {
       try {
         const checked = JSON.parse(prev.answers?.checkedDocs || "{}");
@@ -1501,23 +1301,10 @@ function AppInner() {
     setTimeout(() => setSaveStatus(null), 3000);
   };
 
-  const handleDelete = async (sub) => {
+    const handleDelete = async (sub) => {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/ankety?id=eq.${sub.id}`, {
-        method: "DELETE",
-        headers: {
-          "apikey": SUPABASE_KEY,
-          "Authorization": "Bearer " + SUPABASE_KEY,
-          "Content-Type": "application/json",
-          "Prefer": "return=minimal",
-        },
-      });
-      if (res.ok || res.status === 204) {
-        setSubmissions(prev => prev.filter(s => s.id !== sub.id));
-      } else {
-        const err = await res.text();
-        console.error("Delete failed:", res.status, err);
-      }
+      await neonQuery(`DELETE FROM ankety WHERE id = $1`, [String(sub.id)]);
+      setSubmissions(prev => prev.filter(s => s.id !== sub.id));
     } catch(e) {
       console.error("Delete error:", e);
     }
