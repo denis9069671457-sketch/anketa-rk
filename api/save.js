@@ -2,22 +2,22 @@ import { neon } from '@neondatabase/serverless';
 
 const DATABASE_URL = "postgresql://neondb_owner:npg_uA7rOk6LdWsV@ep-orange-art-asgqyaia-pooler.c-4.eu-central-1.aws.neon.tech/neondb?sslmode=require";
 const TG_TOKEN = "8275190161:AAHOi-xx2RGQa2DvlyYQTLwfsf7bBkrUl1M";
-const TG_CHAT_ID = "7348062407";
+
+// Все администраторы
+const TG_ADMINS = [
+  "7348062407",  // Денис
+  "7083321677",  // Администратор 2
+  "8009885685",  // Администратор 3
+];
 
 async function sendTelegram(text) {
-  try {
-    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+  await Promise.all(TG_ADMINS.map(chat_id =>
+    fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: TG_CHAT_ID,
-        text,
-        parse_mode: "HTML",
-      }),
-    });
-  } catch(e) {
-    console.error("Telegram error:", e);
-  }
+      body: JSON.stringify({ chat_id, text, parse_mode: "HTML" }),
+    }).catch(e => console.error(`Telegram error for ${chat_id}:`, e))
+  ));
 }
 
 export default async function handler(req, res) {
@@ -37,20 +37,19 @@ export default async function handler(req, res) {
         RETURNING id
       `;
 
-      // Уведомление в Telegram
       const childName = answers?.s0_1 || answers?.f0_1 || "Не указано";
       const typeLabel = form_type === "family" ? "🧬 Семейный фон"
         : form_type === "documents" ? "📎 Документы"
         : "📋 Анкета М.И. Лынской";
 
-      const msg = `✅ <b>Новая анкета!</b>\n\n`
+      await sendTelegram(
+        `✅ <b>Новая анкета!</b>\n\n`
         + `${typeLabel}\n`
         + `👶 Ребёнок: <b>${childName}</b>\n`
         + `👤 Родитель: <b>${parent_name || "Не указан"}</b>\n`
-        + `🕐 Время: ${new Date(date).toLocaleString("ru-RU")}\n\n`
-        + `Войдите в кабинет администратора чтобы просмотреть анкету.`;
-
-      await sendTelegram(msg);
+        + `🕐 ${new Date(date).toLocaleString("ru-RU")}\n\n`
+        + `Войдите в кабинет администратора для просмотра.`
+      );
 
       return res.status(200).json({ ok: true, id: result[0].id });
     }
@@ -61,10 +60,8 @@ export default async function handler(req, res) {
       if (child_name) {
         const rows = await sql`
           SELECT id, date, answers, parent_name, form_type
-          FROM ankety
-          WHERE form_type = 'documents'
-          ORDER BY date DESC
-          LIMIT 20
+          FROM ankety WHERE form_type = 'documents'
+          ORDER BY date DESC LIMIT 20
         `;
         const name = child_name.toLowerCase();
         const match = rows.find(r => {
