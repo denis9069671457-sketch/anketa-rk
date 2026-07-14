@@ -2,13 +2,7 @@ import { neon } from '@neondatabase/serverless';
 
 const DATABASE_URL = "postgresql://neondb_owner:npg_uA7rOk6LdWsV@ep-orange-art-asgqyaia-pooler.c-4.eu-central-1.aws.neon.tech/neondb?sslmode=require";
 const TG_TOKEN = "8275190161:AAHOi-xx2RGQa2DvlyYQTLwfsf7bBkrUl1M";
-
-// Все администраторы
-const TG_ADMINS = [
-  "7348062407",  // Денис
-  "7083321677",  // Администратор 2
-  "8009885685",  // Администратор 3
-];
+const TG_ADMINS = ["7348062407", "7083321677", "8009885685"];
 
 async function sendTelegram(text) {
   await Promise.all(TG_ADMINS.map(chat_id =>
@@ -18,6 +12,55 @@ async function sendTelegram(text) {
       body: JSON.stringify({ chat_id, text, parse_mode: "HTML" }),
     }).catch(e => console.error(`Telegram error for ${chat_id}:`, e))
   ));
+}
+
+async function checkAndNotify(sql, parent_name, childName, newFormType) {
+  // Загружаем все анкеты этого клиента
+  const rows = await sql`
+    SELECT form_type FROM ankety
+    WHERE parent_name = ${parent_name}
+    ORDER BY date DESC
+  `;
+
+  const formTypes = new Set(rows.map(r => r.form_type));
+  formTypes.add(newFormType); // добавляем только что сохранённую
+
+  const hasAnamnez = formTypes.has("anamnez");
+  const hasFamily = formTypes.has("family");
+  const hasDocs = formTypes.has("documents");
+
+  // Отправляем уведомление только при определённых событиях
+  const now = new Date().toLocaleString("ru-RU");
+
+  if (newFormType === "documents") {
+    // Финальное сводное сообщение когда пришли документы
+    let msg = `🎉 <b>Клиент завершил оформление!</b>\n\n`;
+    msg += `👶 Ребёнок: <b>${childName || "Не указано"}</b>\n`;
+    msg += `👤 Родитель: <b>${parent_name || "Не указан"}</b>\n`;
+    msg += `🕐 ${now}\n\n`;
+    msg += `<b>Что заполнено:</b>\n`;
+    msg += hasAnamnez ? `✅ Анкета М.И. Лынской\n` : `⬜ Анкета М.И. Лынской\n`;
+    msg += hasFamily  ? `✅ Семейный фон\n`         : `⬜ Семейный фон\n`;
+    msg += `✅ Документы\n\n`;
+    msg += `Войдите в кабинет администратора для просмотра.`;
+    await sendTelegram(msg);
+
+  } else if (newFormType === "anamnez" && !hasFamily) {
+    // Первая анкета — краткое уведомление
+    const msg = `📋 <b>${parent_name || "Клиент"}</b> заполнил первую анкету (М.И. Лынской).\n`
+      + `👶 Ребёнок: <b>${childName || "Не указано"}</b>\n`
+      + `Ожидаем семейный фон и документы...`;
+    await sendTelegram(msg);
+
+  } else if (newFormType === "family" && hasAnamnez) {
+    // Обе анкеты готовы — ждём документы
+    const msg = `🧬 <b>${parent_name || "Клиент"}</b> заполнил обе анкеты!\n`
+      + `👶 Ребёнок: <b>${childName || "Не указано"}</b>\n`
+      + `✅ Анкета М.И. Лынской\n`
+      + `✅ Семейный фон\n`
+      + `⏳ Ожидаем документы...`;
+    await sendTelegram(msg);
+  }
 }
 
 export default async function handler(req, res) {
@@ -37,19 +80,8 @@ export default async function handler(req, res) {
         RETURNING id
       `;
 
-      const childName = answers?.s0_1 || answers?.f0_1 || "Не указано";
-      const typeLabel = form_type === "family" ? "🧬 Семейный фон"
-        : form_type === "documents" ? "📎 Документы"
-        : "📋 Анкета М.И. Лынской";
-
-      await sendTelegram(
-        `✅ <b>Новая анкета!</b>\n\n`
-        + `${typeLabel}\n`
-        + `👶 Ребёнок: <b>${childName}</b>\n`
-        + `👤 Родитель: <b>${parent_name || "Не указан"}</b>\n`
-        + `🕐 ${new Date(date).toLocaleString("ru-RU")}\n\n`
-        + `Войдите в кабинет администратора для просмотра.`
-      );
+      const childName = answers?.s0_1 || answers?.f0_1 || "";
+      await checkAndNotify(sql, parent_name || "", childName, form_type || "anamnez");
 
       return res.status(200).json({ ok: true, id: result[0].id });
     }
