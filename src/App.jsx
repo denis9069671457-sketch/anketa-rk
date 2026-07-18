@@ -316,79 +316,103 @@ const ADMIN_PASSWORD = "3211";
 // ─── Word export ──────────────────────────────────────────────────────────────
 function exportToWord(submission) {
   const esc = (t) => String(t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const isFamily = submission.form_type === "family";
+  const isDocs = submission.form_type === "documents";
 
+  // Определяем разделы и название в зависимости от типа анкеты
+  const sections = isFamily ? FAMILY_SECTIONS : SECTIONS;
+  const title = isFamily
+    ? "Анкета для определения семейно-наследственного фона"
+    : "Анкета по сбору анамнеза по стандарту М.И. Лынской";
+  const childKey = isFamily ? "f0_1" : "s0_1";
+  const dobKey = isFamily ? "f0_2" : "s0_2";
+  const ageKey = isFamily ? "f0_3" : "s0_3";
+  const cityKey = isFamily ? "f0_4" : "s0_4";
+
+  // Если это документы — отдельный шаблон
+  if (isDocs) {
+    const checked = (() => { try { return JSON.parse(submission.answers?.checkedDocs || "{}"); } catch(e) { return {}; } })();
+    const fileNames = (() => { try { return JSON.parse(submission.answers?.fileNames || "[]"); } catch(e) { return []; } })();
+    const fileData = (() => { try { return JSON.parse(submission.answers?.fileData || "[]"); } catch(e) { return []; } })();
+    const totalChecked = Object.values(checked).filter(Boolean).length;
+
+    let html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"/>
+    <style>@media print{.bar{display:none!important}body{margin:10mm 15mm}}body{font-family:Arial,sans-serif;font-size:12px;margin:20px 30px;color:#111}.bar{position:fixed;top:0;left:0;right:0;background:#1a2a2a;padding:10px 20px;display:flex;gap:12px;align-items:center;z-index:99}.bar span{color:#2ab5b5;font-weight:bold;flex:1}.bp{background:#2ab5b5;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:bold;cursor:pointer}.cnt{margin-top:52px}.ttl{text-align:center;margin-bottom:16px}.ttl h1{font-size:15px;font-weight:bold;margin:0 0 4px}.ttl p{font-size:11px;color:#555;margin:2px 0}h2{font-size:13px;font-weight:bold;background:#f0ecf8;border:1px solid #aaa;padding:5px;margin:10px 0 0}.row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #eee;font-size:12px}.chk{font-size:16px}.file{color:#2ab5b5;font-weight:bold}</style>
+    </head><body>
+    <div class="bar"><span>Документы: ${esc(submission.parent_name||"—")}</span><button class="bp" onclick="window.print()">🖨️ Печать</button></div>
+    <div class="cnt"><div class="ttl"><h1>Список документов клиента</h1><p>Центр Рината Каримова · ${new Date(submission.date).toLocaleString("ru-RU")}</p><p>Родитель: <b>${esc(submission.parent_name||"—")}</b> · Отмечено: ${totalChecked} документов</p></div>`;
+
+    DOCUMENTS.forEach(group => {
+      html += `<h2>${esc(group.category)}${group.required?" (ОБЯЗАТЕЛЬНО)":""}</h2>`;
+      group.items.forEach(item => {
+        const isChecked = checked[item.id];
+        const file = fileNames.find(f => f.docId === item.id);
+        const fd = fileData.find(f => f.docId === item.id);
+        html += `<div class="row"><span class="chk">${isChecked?"✅":"⬜"}</span><span style="flex:1">${esc(item.label)}</span>`;
+        if (file && fd) html += `<a class="file" href="${fd.data}" download="${file.fileName}">📎 ${esc(file.fileName)}</a>`;
+        html += `</div>`;
+      });
+    });
+
+    if (submission.answers?.comment) {
+      html += `<div style="margin-top:16px;padding:12px;background:#f9f9f9;border-radius:8px;font-size:12px"><b>Комментарий:</b> ${esc(submission.answers.comment)}</div>`;
+    }
+    html += `</div></body></html>`;
+    window.open(URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})),"_blank");
+    return;
+  }
+
+  // Анкета Лынской или Семейный фон
   let html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"/>
   <style>
-    @media print {
-      .top-bar { display: none !important; }
-      body { margin: 10mm 15mm; }
-      table { page-break-inside: auto; }
-      tr { page-break-inside: avoid; page-break-after: auto; }
-      h2 { page-break-after: avoid; }
-    }
+    @media print { .top-bar { display: none !important; } body { margin: 10mm 15mm; } }
     body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px 30px; color: #111; }
     .top-bar { position: fixed; top: 0; left: 0; right: 0; background: #1a2a2a; padding: 10px 20px; display: flex; gap: 12px; align-items: center; z-index: 99; }
     .top-bar span { color: #2ab5b5; font-weight: bold; font-size: 14px; flex: 1; }
     .btn-print { background: #2ab5b5; color: white; border: none; border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: bold; cursor: pointer; }
-    .btn-hint { background: #f5c842; color: #1a2a2a; border: none; border-radius: 8px; padding: 8px 14px; font-size: 11px; font-weight: bold; }
     .content { margin-top: 52px; }
     .title-block { text-align: center; margin-bottom: 16px; }
-    .title-block h1 { font-size: 16px; font-weight: bold; margin: 0 0 4px; }
-    .title-block p { font-size: 12px; color: #555; margin: 0; }
-    .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
-    .meta-table td { border: 1px solid #999; padding: 4px 8px; font-size: 12px; }
-    .meta-table td:first-child { width: 55%; background: #f5f5f5; font-weight: 500; }
-    h2 { font-size: 13px; font-weight: bold; text-align: center; background: #e8f5f5; border: 1px solid #aaa; padding: 5px; margin: 10px 0 0; }
-    .section-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
-    .section-table td { border: 1px solid #999; border-top: none; padding: 5px 8px; font-size: 12px; vertical-align: top; }
-    .section-table tr:first-child td { border-top: none; }
-    .section-table .q-cell { width: 55%; background: #fafafa; }
-    .section-table .a-cell { width: 45%; }
+    .title-block h1 { font-size: 15px; font-weight: bold; margin: 0 0 4px; }
+    .title-block p { font-size: 11px; color: #555; margin: 2px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    h2 { font-size: 13px; font-weight: bold; text-align: center; background: ${isFamily ? "#f0ecf8" : "#e8f5f5"}; border: 1px solid #aaa; padding: 5px; margin: 10px 0 0; }
+    td { border: 1px solid #999; border-top: none; padding: 5px 8px; font-size: 11px; vertical-align: top; }
+    .q-cell { width: 55%; background: #fafafa; }
     .q-num { color: #888; font-size: 10px; margin-right: 4px; }
     .empty { color: #bbb; font-style: italic; }
   </style></head><body>
   <div class="top-bar">
-    <span>Анкета: ${esc(submission.answers["s0_1"] || "—")}</span>
+    <span>${esc(title)}: ${esc(submission.answers?.[childKey]||"—")}</span>
     <button class="btn-print" onclick="window.print()">🖨️ Печать / PDF</button>
-    <span class="btn-hint">iPad: Печать → Сохранить в Файлы</span>
+    <span style="background:#f5c842;color:#1a2a2a;border-radius:8px;padding:8px 14px;font-size:11px;font-weight:bold">iPad: Печать → Файлы</span>
   </div>
   <div class="content">
     <div class="title-block">
-      <h1>Анкета по сбору анамнеза по стандарту М.И. Лынской</h1>
-      <p>Дата заполнения: ${new Date(submission.date).toLocaleString("ru-RU")}</p>
-    </div>`;
+      <h1>${esc(title)}</h1>
+      <p>Центр Рината Каримова · Дата: ${new Date(submission.date).toLocaleString("ru-RU")}</p>
+      <p>Родитель: <b>${esc(submission.parent_name||"—")}</b></p>
+    </div>
+    <table>
+      <tr><td class="q-cell">Фамилия, имя ребенка</td><td>${esc(submission.answers?.[childKey])}</td></tr>
+      <tr><td class="q-cell">Дата рождения</td><td>${esc(submission.answers?.[dobKey])}</td></tr>
+      <tr><td class="q-cell">Возраст на момент диагностики</td><td>${esc(submission.answers?.[ageKey])}</td></tr>
+      <tr><td class="q-cell">Город проживания</td><td>${esc(submission.answers?.[cityKey])}</td></tr>
+    </table>`;
 
-  // Шапка с основными данными
-  html += `<table class="meta-table">
-    <tr><td>Фамилия, имя ребенка</td><td>${esc(submission.answers["s0_1"])}</td></tr>
-    <tr><td>Дата рождения ребенка</td><td>${esc(submission.answers["s0_2"])}</td></tr>
-    <tr><td>Возраст на момент прохождения диагностики</td><td>${esc(submission.answers["s0_3"])}</td></tr>
-    <tr><td>Город проживания</td><td>${esc(submission.answers["s0_4"])}</td></tr>
-  </table>`;
-
-  // Разделы — пропускаем s0 так как уже вывели
-  SECTIONS.slice(1).forEach(sec => {
-    html += `<h2>${sec.title}</h2>`;
-    html += `<table class="section-table">`;
+  sections.slice(1).forEach(sec => {
+    html += `<h2>${sec.icon || ""} ${esc(sec.title)}</h2><table>`;
     sec.fields.forEach((f, i) => {
-      const ans = submission.answers[f.id];
-      html += `<tr>
-        <td class="q-cell"><span class="q-num">${i+1}.</span>${esc(f.label)}</td>
-        <td class="a-cell${ans ? "" : " empty"}">${ans ? esc(ans) : ""}</td>
-      </tr>`;
+      const ans = submission.answers?.[f.id];
+      html += `<tr><td class="q-cell"><span class="q-num">${i+1}.</span>${esc(f.label)}</td><td class="${ans?"":"empty"}">${esc(ans)}</td></tr>`;
     });
     html += `</table>`;
   });
 
   html += `</div></body></html>`;
-
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  window.open(URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})),"_blank");
 }
 
 
-// ─── Logo component ───────────────────────────────────────────────────────────
 function Logo({ size = 48 }) {
   return <img src={LOGO_B64} alt="RK Logo" style={{ width: size, height: size, objectFit:"contain" }} />;
 }
