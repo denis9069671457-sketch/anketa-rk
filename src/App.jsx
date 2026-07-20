@@ -756,7 +756,7 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked={}, prev
   const [uploading, setUploading] = useState(false);
   const [comment, setComment] = useState("");
   const toggleCheck = (id) => setChecked(p=>({...p,[id]:!p[id]}));
-  const handleFile = (id,e) => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=(ev)=>{setFiles(p=>({...p,[id]:{name:f.name,type:f.type,size:f.size,data:ev.target.result}}));}; r.readAsDataURL(f); };
+  const handleFile = (id,e) => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=(ev)=>{setFiles(p=>({...p,[id]:{name:f.name,type:f.type,size:f.size,data:ev.target.result}})); setChecked(p=>({...p,[id]:true}));}; r.readAsDataURL(f); };
   const removeFile = (id) => setFiles(p=>{const n={...p};delete n[id];return n;});
   const totalChecked = Object.values(checked).filter(Boolean).length;
   const totalFiles = Object.keys(files).length;
@@ -792,13 +792,17 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked={}, prev
           <div style={{padding:"12px 20px"}}>
             {docGroup.items.map(item=>(
               <div key={item.id} style={{marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${C.grayBorder}`}}>
-                <div onClick={()=>toggleCheck(item.id)} style={{display:"flex",alignItems:"flex-start",gap:12,cursor:"pointer",marginBottom:8}}>
-                  <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${checked[item.id]?C.teal:"#ccc"}`,background:checked[item.id]?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
+                <div
+                  onClick={()=>{ if(files[item.id]) toggleCheck(item.id); }}
+                  style={{display:"flex",alignItems:"flex-start",gap:12,cursor:files[item.id]?"pointer":"not-allowed",marginBottom:8,opacity:files[item.id]?1:0.7}}
+                >
+                  <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${checked[item.id]?C.teal:files[item.id]?"#aaa":"#ddd"}`,background:checked[item.id]?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
                     {checked[item.id]&&<span style={{color:"#fff",fontSize:13,fontWeight:900}}>✓</span>}
                   </div>
                   <div>
                     <p style={{margin:0,fontSize:14,fontWeight:600,color:checked[item.id]?C.tealDark:C.dark}}>{item.label}</p>
                     {item.note&&<p style={{margin:"2px 0 0",fontSize:12,color:C.grayMid}}>{item.note}</p>}
+                    {!files[item.id]&&<p style={{margin:"3px 0 0",fontSize:11,color:"#e84545"}}>⚠️ Сначала прикрепите файл чтобы отметить галочку</p>}
                   </div>
                 </div>
                 <div style={{marginLeft:34}}>
