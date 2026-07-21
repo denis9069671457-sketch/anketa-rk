@@ -363,6 +363,7 @@ function exportToWord(submission) {
   }
 
   // Анкета Лынской или Семейный фон
+  const h2Bg = isFamily ? "#f0ecf8" : "#e8f5f5";
   let html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"/>
   <style>
     @media print { .top-bar { display: none !important; } body { margin: 10mm 15mm; } }
@@ -375,7 +376,7 @@ function exportToWord(submission) {
     .title-block h1 { font-size: 15px; font-weight: bold; margin: 0 0 4px; }
     .title-block p { font-size: 11px; color: #555; margin: 2px 0; }
     table { width: 100%; border-collapse: collapse; }
-    h2 { font-size: 13px; font-weight: bold; text-align: center; background: ${isFamily ? "#f0ecf8" : "#e8f5f5"}; border: 1px solid #aaa; padding: 5px; margin: 10px 0 0; }
+    h2 { font-size: 13px; font-weight: bold; text-align: center; background: ${h2Bg}; border: 1px solid #aaa; padding: 5px; margin: 10px 0 0; }
     td { border: 1px solid #999; border-top: none; padding: 5px 8px; font-size: 11px; vertical-align: top; }
     .q-cell { width: 55%; background: #fafafa; }
     .q-num { color: #888; font-size: 10px; margin-right: 4px; }
@@ -750,12 +751,18 @@ function FamilyForm({ onSubmit }) {
 }
 
 // ─── DocumentsScreen ──────────────────────────────────────────────────────────
-function DocumentsScreen({ parentName, childName, onSubmit, prevChecked={}, prevDocs=null }) {
-  const [checked, setChecked] = useState(prevChecked||{});
-  const [files, setFiles] = useState({});
-  const [uploading, setUploading] = useState(false);
-  const [comment, setComment] = useState("");
-  const toggleCheck = (id) => setChecked(p=>({...p,[id]:!p[id]}));
+function DocumentsScreen({ parentName, childName, onSubmit, prevChecked = {}, prevDocs = null }) {
+  const [checked, setChecked] = React.useState(prevChecked || {});
+  const [files, setFiles] = React.useState({});
+  const [uploading, setUploading] = React.useState(false);
+  const [comment, setComment] = React.useState("");
+
+  const toggleCheck = (id) => {
+    if (files[id] && (files[id] || []).length > 0) {
+      setChecked(p => ({ ...p, [id]: !p[id] }));
+    }
+  };
+
   const handleFile = (id, e) => {
     const fileList = Array.from(e.target.files);
     if (!fileList.length) return;
@@ -771,511 +778,133 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked={}, prev
       r.readAsDataURL(f);
     });
   };
+
   const removeFile = (id, idx) => {
     setFiles(p => {
       const arr = (p[id] || []).filter((_, i) => i !== idx);
       if (arr.length > 0) return { ...p, [id]: arr };
       const n = { ...p };
       delete n[id];
+      setChecked(c => ({ ...c, [id]: false }));
       return n;
     });
-    setFiles(p => {
-      if (!p[id] || p[id].length === 0) setChecked(c => ({ ...c, [id]: false }));
-      return p;
-    });
   };
+
   const totalChecked = Object.values(checked).filter(Boolean).length;
-  const totalFiles = Object.keys(files).length;
-  const allItems = DOCUMENTS.flatMap(d=>d.items);
+  const totalFiles = Object.values(files).flat().length;
+  const allItems = DOCUMENTS.flatMap(d => d.items);
+
   const handleSubmit = async () => {
     setUploading(true);
-    const docData = { id:Date.now(), date:new Date().toISOString(), parentName, childName, checkedDocs:checked, uploadedFiles:Object.entries(files).map(([id,f])=>({docId:id,fileName:f.name,fileType:f.type,fileSize:f.size,fileData:f.data})), comment, formType:"documents" };
+    const docData = {
+      id: Date.now(),
+      date: new Date().toISOString(),
+      parentName,
+      childName,
+      checkedDocs: checked,
+      uploadedFiles: Object.entries(files).flatMap(([id, arr]) =>
+        (arr || []).map(f => ({ docId: id, fileName: f.name, fileType: f.type, fileSize: f.size, fileData: f.data }))
+      ),
+      comment,
+      formType: "documents",
+    };
     await onSubmit(docData);
     setUploading(false);
   };
+
   return (
-    <div style={{maxWidth:820,margin:"0 auto",padding:"28px 20px"}}>
-      <div style={{background:"linear-gradient(135deg,#1a2a2a,#2a1a1a)",borderRadius:16,padding:"24px 28px",marginBottom:20}}>
-        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
-          <span style={{fontSize:32}}>📋</span>
-          <div>
-            <h2 style={{color:C.yellow,fontSize:18,fontWeight:800,margin:0}}>Список необходимых документов</h2>
-            <p style={{color:"rgba(255,255,255,0.6)",fontSize:12,margin:"4px 0 0"}}>Перед диагностическим консилиумом</p>
-          </div>
-        </div>
-        <div style={{background:"rgba(255,255,255,0.08)",borderRadius:10,padding:"14px 18px",fontSize:13,color:"rgba(255,255,255,0.8)",lineHeight:1.7}}>
-          Все материалы необходимо прислать <b style={{color:C.yellow}}>не позднее чем за 3 суток</b> до начала диагностики. Отметьте галочками что уже есть и прикрепите файлы.
-        </div>
-      </div>
-      {prevDocs && (<div style={{background:"#fff8e1",borderLeft:`4px solid ${C.yellow}`,borderRadius:"0 12px 12px 0",padding:"14px 18px",marginBottom:16,fontSize:13,color:"#555",lineHeight:1.7}}>🔄 <b>Найдена предыдущая отправка</b> от {new Date(prevDocs.date).toLocaleDateString("ru-RU")}. Ранее отмеченные документы уже отмечены. Добавьте недостающие.</div>)}
-      {totalChecked>0&&(<div style={{background:C.tealLight,borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:C.tealDark,fontWeight:600}}>✅ Отмечено: {totalChecked} из {allItems.length} · Прикреплено файлов: {totalFiles}</div>)}
-      {DOCUMENTS.map(docGroup=>(
-        <div key={docGroup.id} style={{background:C.white,borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",marginBottom:16,overflow:"hidden"}}>
-          <div style={{padding:"16px 20px",borderBottom:`2px solid ${docGroup.required?"#fee2e2":C.tealLight}`,display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:16,fontWeight:700,color:C.dark}}>{docGroup.category}</span>
-            {docGroup.required&&<span style={{fontSize:11,fontWeight:700,background:"#fee2e2",color:"#e84545",padding:"2px 8px",borderRadius:10}}>ОБЯЗАТЕЛЬНО</span>}
-          </div>
-          <div style={{padding:"12px 20px"}}>
-            {docGroup.items.map(item=>(
-              <div key={item.id} style={{marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${C.grayBorder}`}}>
-                <div
-                  onClick={()=>{ if(files[item.id]) toggleCheck(item.id); }}
-                  style={{display:"flex",alignItems:"flex-start",gap:12,cursor:files[item.id]?"pointer":"not-allowed",marginBottom:8,opacity:files[item.id]?1:0.7}}
-                >
-                  <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${checked[item.id]?C.teal:files[item.id]?"#aaa":"#ddd"}`,background:checked[item.id]?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
-                    {checked[item.id]&&<span style={{color:"#fff",fontSize:13,fontWeight:900}}>✓</span>}
-                  </div>
-                  <div>
-                    <p style={{margin:0,fontSize:14,fontWeight:600,color:checked[item.id]?C.tealDark:C.dark}}>{item.label}</p>
-                    {item.note&&<p style={{margin:"2px 0 0",fontSize:12,color:C.grayMid}}>{item.note}</p>}
-                    {!files[item.id]&&<p style={{margin:"3px 0 0",fontSize:11,color:"#e84545"}}>⚠️ Сначала прикрепите файл чтобы отметить галочку</p>}
-                  </div>
-                </div>
-                <div style={{marginLeft:34}}>
-                  {files[item.id]?(
-                    <div style={{display:"flex",alignItems:"center",gap:8,background:C.tealLight,borderRadius:8,padding:"8px 12px"}}>
-                      <span style={{fontSize:18}}>📎</span>
-                      <span style={{fontSize:13,color:C.tealDark,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{files[item.id].name}</span>
-                      <button onClick={()=>removeFile(item.id)} style={{background:"none",border:"none",color:"#e84545",cursor:"pointer",fontSize:18,padding:0}}>×</button>
-                    </div>
-                  ):(
-                    <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",padding:"6px 14px",background:C.grayLight,borderRadius:8,border:`1px dashed ${C.grayBorder}`,fontSize:12,color:C.grayMid}}>
-                      <span>📎</span> Прикрепить файл или фото
-                      <input type="file" accept="image/*,.pdf,.doc,.docx" style={{display:"none"}} onChange={e=>handleFile(item.id,e)}/>
-                    </label>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-      <div style={{background:C.white,borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",padding:"20px",marginBottom:20}}>
-        <p style={{fontSize:14,fontWeight:600,color:C.dark,marginBottom:8}}>💬 Дополнительный комментарий</p>
-        <textarea rows={3} value={comment} onChange={e=>setComment(e.target.value)} placeholder="Например: анализ ЭЭГ сдаём на следующей неделе..." style={{width:"100%",border:`1.5px solid ${C.grayBorder}`,borderRadius:8,padding:"10px 14px",fontSize:14,color:C.dark,outline:"none",resize:"vertical",boxSizing:"border-box",background:"#fafcfc",fontFamily:"inherit"}}/>
-      </div>
-      <div style={{background:"linear-gradient(135deg,#1a3a2a,#1a2a1a)",borderRadius:14,padding:"24px 28px",textAlign:"center"}}>
-        <Btn onClick={handleSubmit} variant="yellow" disabled={uploading} style={{fontSize:15,padding:"14px 36px"}}>
-          {uploading?"⏳ Отправляем...":`✅ Отправить документы (${totalChecked} отмечено, ${totalFiles} файлов)`}
-        </Btn>
-      </div>
-    </div>
-  );
-}
-
-
-// ─── Admin login ──────────────────────────────────────────────────────────────
-function AdminLogin({ onLogin }) {
-  const [pw, setPw] = useState(""); 
-  const [err, setErr] = useState(false);
-  const check = () => pw === "3211" ? onLogin() : setErr(true);
-  return (
-    <div style={{ maxWidth:420, margin:"80px auto", padding:"0 20px" }}>
-      <div style={{ background:C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", padding:"48px 40px", textAlign:"center" }}>
-        <Logo size={64}/>
-        <h2 style={{ fontSize:22, color:C.dark, margin:"20px 0 24px" }}>Вход для администратора</h2>
-        <input type="password" style={{ width:"100%", border:`1.5px solid ${C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, textAlign:"center", outline:"none", marginBottom:12, boxSizing:"border-box", background:"#fafcfc", color:C.dark }}
-          placeholder="Введите пароль" value={pw}
-          onChange={e => { setPw(e.target.value); setErr(false); }}
-          onKeyDown={e => e.key === "Enter" && check()} />
-        {err && <p style={{ color:"#e05050", fontSize:13, margin:"0 0 12px" }}>Неверный пароль</p>}
-        <button onClick={check} style={{ width:"100%", padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background:C.teal, color:"#fff" }}>Войти</button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Admin panel ──────────────────────────────────────────────────────────────
-const DELETE_PASSWORD = "3222";
-
-function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) {
-  const [sel, setSel] = useState(null);
-  const [search, setSearch] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deletePw, setDeletePw] = useState("");
-  const [deleteErr, setDeleteErr] = useState(false);
-  const topRef = useRef(null);
-
-  const safeSubs = Array.isArray(submissions) ? submissions : [];
-  const filteredSubs = search.trim()
-    ? safeSubs.filter(s => {
-        const n = (s.answers?.s0_1 || s.answers?.f0_1 || "").toLowerCase();
-        const p = (s.parent_name || "").toLowerCase();
-        return n.includes(search.toLowerCase()) || p.includes(search.toLowerCase());
-      })
-    : safeSubs;
-
-  const doExport = (sub) => { try { exportToWord(sub); } catch(e) {} };
-  const confirmDelete = (sub) => { setDeleteTarget(sub); setDeletePw(""); setDeleteErr(false); };
-  const executeDelete = () => {
-    if (deletePw === DELETE_PASSWORD) { onDelete(deleteTarget); setDeleteTarget(null); if (sel?.id === deleteTarget.id) setSel(null); }
-    else setDeleteErr(true);
-  };
-
-  const DelModal = deleteTarget ? (
-    <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-      <div style={{ background:"#fff", borderRadius:16, padding:"36px 32px", maxWidth:400, width:"100%", textAlign:"center" }}>
-        <div style={{ fontSize:48, marginBottom:12 }}>🗑️</div>
-        <h3 style={{ fontSize:18, color:"#1a2a2a", marginBottom:8 }}>Удалить анкету?</h3>
-        <p style={{ fontSize:13, color:"#666", marginBottom:20 }}><b>{deleteTarget.answers?.s0_1 || deleteTarget.answers?.f0_1 || "Без имени"}</b><br/>Это действие нельзя отменить.</p>
-        <input type="password" placeholder="Пароль для удаления" value={deletePw}
-          onChange={e => { setDeletePw(e.target.value); setDeleteErr(false); }}
-          onKeyDown={e => e.key === "Enter" && executeDelete()}
-          style={{ width:"100%", border:`1.5px solid ${deleteErr?"#e05050":"#e2e8f0"}`, borderRadius:8, padding:"10px 14px", fontSize:14, textAlign:"center", outline:"none", marginBottom:8, boxSizing:"border-box" }} autoFocus/>
-        {deleteErr && <p style={{ color:"#e05050", fontSize:13, margin:"0 0 12px" }}>Неверный пароль</p>}
-        <div style={{ display:"flex", gap:10 }}>
-          <button onClick={() => setDeleteTarget(null)} style={{ flex:1, padding:"10px", borderRadius:8, border:"1.5px solid #e2e8f0", background:"#f4f6f8", cursor:"pointer", fontSize:14, fontWeight:600 }}>Отмена</button>
-          <button onClick={executeDelete} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:"#e84545", color:"#fff", cursor:"pointer", fontSize:14, fontWeight:700 }}>Удалить</button>
-        </div>
-      </div>
-    </div>
-  ) : null;
-
-  if (sel) return (
     <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
-      {DelModal}<div ref={topRef}/>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, gap:10, flexWrap:"wrap" }}>
-        <button onClick={() => setSel(null)} style={{ padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background:C.grayLight, color:C.gray }}>← Все анкеты</button>
-        <div style={{ display:"flex", gap:10 }}>
-          <button onClick={() => doExport(sel)} style={{ padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background:C.yellow, color:C.dark }}>📄 Печать</button>
-          <button onClick={() => confirmDelete(sel)} style={{ padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background:"#fee2e2", color:"#e84545" }}>🗑️ Удалить</button>
+      <div style={{ background:"linear-gradient(135deg,#1a2a2a,#2a1a1a)", borderRadius:16, padding:"24px 28px", marginBottom:20 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:12 }}>
+          <span style={{ fontSize:32 }}>📋</span>
+          <div>
+            <h2 style={{ color:C.yellow, fontSize:18, fontWeight:800, margin:0 }}>Список необходимых документов</h2>
+            <p style={{ color:"rgba(255,255,255,0.6)", fontSize:12, margin:"4px 0 0" }}>Шаг 3 из 3 — перед диагностическим консилиумом</p>
+          </div>
+        </div>
+        <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:10, padding:"14px 18px", fontSize:13, color:"rgba(255,255,255,0.8)", lineHeight:1.7 }}>
+          Уважаемые родители! Все материалы необходимо прислать <b style={{color:C.yellow}}>не позднее чем за 3 суток</b> до начала диагностики. Прикрепите файл — галочка поставится автоматически.
         </div>
       </div>
-      <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
-        <h2 style={{ fontSize:20, color:C.dark, marginBottom:4 }}>{sel.answers?.s0_1 || sel.answers?.f0_1 || "—"}</h2>
-        <p style={{ fontSize:13, color:C.grayMid, marginBottom:4 }}>Родитель: <b style={{color:C.dark}}>{sel.parent_name || "—"}</b></p>
-        <p style={{ fontSize:13, color:C.grayMid, marginBottom:4 }}>Тип: <b style={{color:C.teal}}>{sel.form_type === "family" ? "🧬 Семейный фон" : sel.form_type === "documents" ? "📋 Документы" : "📋 М.И. Лынской"}</b></p>
-        <p style={{ fontSize:13, color:C.grayMid, marginBottom:20 }}>Дата: {sel.date ? new Date(sel.date).toLocaleString("ru-RU") : "—"}</p>
-        {sel.form_type === "documents" ? (
-          <div>
-            {(() => {
-              const checked = (() => { try { return JSON.parse(sel.answers?.checkedDocs || "{}"); } catch(e) { return {}; } })();
-              const fileNames = (() => { try { return JSON.parse(sel.answers?.fileNames || "[]"); } catch(e) { return []; } })();
-              const fileData = (() => { try { return JSON.parse(sel.answers?.fileData || "[]"); } catch(e) { return []; } })();
-              return DOCUMENTS.map(group => (
-                <div key={group.id} style={{ marginBottom:16 }}>
-                  <p style={{ fontSize:13, fontWeight:700, color:C.dark, marginBottom:8, borderBottom:`2px solid ${group.required?"#fee2e2":C.tealLight}`, paddingBottom:6 }}>
-                    {group.category} {group.required && <span style={{fontSize:11,color:"#e84545"}}>(ОБЯЗАТЕЛЬНО)</span>}
-                  </p>
-                  {group.items.map(item => {
-                    const isChecked = checked[item.id];
-                    const file = fileNames.find(f => f.docId === item.id);
-                    const fd = fileData.find(f => f.docId === item.id);
-                    return (
-                      <div key={item.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, padding:"8px 12px", background:isChecked?"#e8f8f8":"#fafafa", borderRadius:8 }}>
-                        <span>{isChecked ? "✅" : "⬜"}</span>
-                        <span style={{ flex:1, fontSize:13, color:isChecked?C.tealDark:C.grayMid }}>{item.label}</span>
-                        {file && fd && <a href={fd.data} download={file.fileName} style={{ fontSize:12, color:C.teal, fontWeight:600, textDecoration:"none", background:C.tealLight, padding:"4px 10px", borderRadius:8 }}>📎 {file.fileName}</a>}
+
+      {prevDocs && (
+        <div style={{ background:"#fff8e1", borderLeft:"4px solid #f5c842", borderRadius:"0 12px 12px 0", padding:"14px 18px", marginBottom:16, fontSize:13, color:"#555", lineHeight:1.7 }}>
+          Найдена предыдущая отправка от {new Date(prevDocs.date).toLocaleDateString("ru-RU")}. Добавьте недостающие документы.
+        </div>
+      )}
+
+      {totalChecked > 0 && (
+        <div style={{ background:C.tealLight, borderRadius:10, padding:"10px 16px", marginBottom:16, fontSize:13, color:C.tealDark, fontWeight:600 }}>
+          Отмечено: {totalChecked} из {allItems.length} · Прикреплено файлов: {totalFiles}
+        </div>
+      )}
+
+      {DOCUMENTS.map(docGroup => (
+        <div key={docGroup.id} style={{ background:C.white, borderRadius:14, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", marginBottom:16, overflow:"hidden" }}>
+          <div style={{ padding:"14px 20px", borderBottom: docGroup.required ? "2px solid #fee2e2" : "2px solid #e8f8f8", display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:15, fontWeight:700, color:C.dark }}>{docGroup.category}</span>
+            {docGroup.required && <span style={{ fontSize:11, fontWeight:700, background:"#fee2e2", color:"#e84545", padding:"2px 8px", borderRadius:10 }}>ОБЯЗАТЕЛЬНО</span>}
+          </div>
+          <div style={{ padding:"12px 20px" }}>
+            {docGroup.items.map(item => {
+              const itemFiles = files[item.id] || [];
+              const hasFile = itemFiles.length > 0;
+              const isChecked = checked[item.id];
+              return (
+                <div key={item.id} style={{ marginBottom:16, paddingBottom:16, borderBottom:"1px solid #e2e8f0" }}>
+                  <div style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:10, cursor: hasFile ? "pointer" : "not-allowed", opacity: hasFile ? 1 : 0.7 }}
+                    onClick={() => { if (hasFile) toggleCheck(item.id); }}>
+                    <div style={{ width:22, height:22, borderRadius:5,
+                      border: "2px solid " + (isChecked ? C.teal : hasFile ? "#aaa" : "#ddd"),
+                      background: isChecked ? C.teal : "#fff",
+                      flexShrink:0, marginTop:1, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      {isChecked && <span style={{ color:"#fff", fontSize:13, fontWeight:900 }}>✓</span>}
+                    </div>
+                    <div>
+                      <p style={{ margin:0, fontSize:14, fontWeight:600, color: isChecked ? C.tealDark : C.dark }}>{item.label}</p>
+                      {item.note && <p style={{ margin:"2px 0 0", fontSize:12, color:C.grayMid }}>{item.note}</p>}
+                      {!hasFile && <p style={{ margin:"3px 0 0", fontSize:11, color:"#e84545" }}>⚠️ Сначала прикрепите файл</p>}
+                    </div>
+                  </div>
+                  <div style={{ marginLeft:34 }}>
+                    {itemFiles.map((f, fi) => (
+                      <div key={fi} style={{ display:"flex", alignItems:"center", gap:8, background:C.tealLight, borderRadius:8, padding:"7px 12px", marginBottom:6 }}>
+                        <span>📎</span>
+                        <span style={{ fontSize:12, color:C.tealDark, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</span>
+                        <button onClick={() => removeFile(item.id, fi)} style={{ background:"none", border:"none", color:"#e84545", cursor:"pointer", fontSize:18, padding:0 }}>×</button>
                       </div>
-                    );
-                  })}
-                </div>
-              ));
-            })()}
-            {sel.answers?.comment && <p style={{ fontSize:13, color:C.gray, marginTop:12 }}>💬 {sel.answers.comment}</p>}
-          </div>
-        ) : (
-          (sel.form_type === "family" ? FAMILY_SECTIONS : SECTIONS).map(sec => (
-            <div key={sec.id} style={{ marginBottom:24 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12, paddingBottom:8, borderBottom:`2px solid ${sec.color}33` }}>
-                <span style={{ fontSize:18 }}>{sec.icon}</span>
-                <span style={{ fontSize:15, fontWeight:700, color:C.dark }}>{sec.title}</span>
-              </div>
-              {sec.fields.map((f, i) => (
-                <div key={f.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.grayBorder}` }}>
-                  <p style={{ fontSize:12, color:"#aaa", margin:"0 0 3px" }}>{i+1}. {f.label}</p>
-                  <p style={{ fontSize:13, color:sel.answers?.[f.id]?C.dark:"#ccc", margin:0, background:C.grayLight, padding:"7px 10px", borderRadius:6, whiteSpace:"pre-wrap" }}>
-                    {sel.answers?.[f.id] || "Нет ответа"}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-
-  return (
-    <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
-      {DelModal}
-      <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"28px 32px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
-          <Logo size={44}/>
-          <div>
-            <h2 style={{ margin:0, fontSize:20, color:C.dark }}>Панель администратора</h2>
-            <p style={{ margin:"2px 0 0", fontSize:13, color:C.grayMid }}>Всего анкет: {safeSubs.length}</p>
-          </div>
-          <button onClick={onRefresh} disabled={loading} style={{ marginLeft:"auto", padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, background:C.grayLight, color:C.gray }}>
-            {loading ? "⏳ Загружаем..." : "↻ Обновить"}
-          </button>
-        </div>
-        <div style={{ position:"relative", marginBottom:16 }}>
-          <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:15, color:C.grayMid, pointerEvents:"none" }}>🔍</span>
-          <input type="text" placeholder="Поиск по фамилии..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ width:"100%", border:`1.5px solid ${search?C.teal:C.grayBorder}`, borderRadius:10, padding:"11px 14px 11px 42px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
-          {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:20, color:C.grayMid, padding:0 }}>×</button>}
-        </div>
-        {loading && <div style={{ textAlign:"center", padding:"40px 0", color:C.grayMid }}><div style={{ fontSize:32, marginBottom:12 }}>⏳</div><p>Загружаем анкеты...</p></div>}
-        {!loading && safeSubs.length === 0 && <div style={{ textAlign:"center", padding:"48px 0", color:"#bbb" }}><div style={{ fontSize:48, marginBottom:12 }}>📋</div><p>Пока нет анкет</p><p style={{ fontSize:12, marginTop:8 }}>Нажмите «↻ Обновить»</p></div>}
-        {!loading && safeSubs.length > 0 && filteredSubs.length === 0 && <div style={{ textAlign:"center", padding:"40px 0", color:"#bbb" }}><div style={{ fontSize:40, marginBottom:12 }}>🔍</div><p>Ничего не найдено</p></div>}
-        {!loading && filteredSubs.map((sub, idx) => {
-          const name = sub.answers?.s0_1 || sub.answers?.f0_1 || "Без имени";
-          const city = sub.answers?.s0_4 || sub.answers?.f0_4 || "";
-          const dateStr = sub.date ? new Date(sub.date).toLocaleDateString("ru-RU") : "—";
-          const badge = sub.form_type === "family" ? { label:"🧬 Семейный фон", bg:"#7b5ea722", color:"#7b5ea7" }
-            : sub.form_type === "documents" ? { label:"📋 Документы", bg:"#fee2e2", color:"#e84545" }
-            : { label:"📋 М.И. Лынской", bg:C.tealLight, color:C.tealDark };
-          return (
-            <div key={sub.id || idx} style={{ background:C.grayLight, borderRadius:12, padding:"16px 20px", marginBottom:12, border:`1px solid ${C.grayBorder}` }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2, flexWrap:"wrap" }}>
-                    <p style={{ margin:0, fontWeight:700, fontSize:15, color:C.dark }}>{name}</p>
-                    <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10, background:badge.bg, color:badge.color }}>{badge.label}</span>
+                    ))}
+                    <label style={{ display:"inline-flex", alignItems:"center", gap:6, cursor:"pointer", padding:"6px 14px", background:C.grayLight, borderRadius:8, border:"1px dashed #ccc", fontSize:12, color:C.grayMid }}>
+                      <span>📎</span> {hasFile ? "Добавить ещё файл" : "Прикрепить файл или фото"}
+                      <input type="file" accept=".jpg,.jpeg,.png,.heic,.pdf,.doc,.docx" multiple style={{ display:"none" }} onChange={e => handleFile(item.id, e)} />
+                    </label>
                   </div>
-                  <p style={{ margin:"0 0 2px", fontSize:12, color:C.grayMid }}>Родитель: {sub.parent_name || "—"}</p>
-                  <p style={{ margin:0, fontSize:12, color:C.grayMid }}>{city}{city?" · ":""}{dateStr}</p>
                 </div>
-                <div style={{ display:"flex", gap:8, flexShrink:0, flexWrap:"wrap" }}>
-                  <button onClick={() => { setSel(sub); topRef?.current?.scrollIntoView(); }} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:C.grayLight, color:C.gray }}>👁 Просмотр</button>
-                  <button onClick={() => doExport(sub)} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:C.yellow, color:C.dark }}>📄 PDF</button>
-                  <button onClick={() => confirmDelete(sub)} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:"#fee2e2", color:"#e84545" }}>🗑️</button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── DocsOnlyForm ─────────────────────────────────────────────────────────────
-async function loadPreviousDocs(childName) {
-  try {
-    const result = await apiCall("GET", { child_name: childName.trim() });
-    if (!result.data) return null;
-    const row = result.data;
-    return {
-      id: row.id, date: row.date,
-      answers: typeof row.answers === "string" ? JSON.parse(row.answers) : (row.answers || {}),
-      parent_name: row.parent_name || "",
-    };
-  } catch(e) { return null; }
-}
-
-function DocsOnlyForm({ onSubmit }) {
-  const [step, setStep] = useState("info");
-  const [childName, setChildName] = useState("");
-  const [parentName, setParentName] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [prevDocs, setPrevDocs] = useState(null);
-  const [prevChecked, setPrevChecked] = useState({});
-  const [done, setDone] = useState(false);
-
-  const handleSearch = async () => {
-    if (!childName.trim() || !parentName.trim()) return;
-    setSearching(true);
-    const prev = await loadPreviousDocs(childName);
-    if (prev) {
-      try { setPrevChecked(JSON.parse(prev.answers?.checkedDocs || "{}")); setPrevDocs(prev); } catch(e) {}
-    }
-    setSearching(false);
-    setStep("docs");
-  };
-
-  if (done) return (
-    <div style={{ maxWidth:600, margin:"60px auto", padding:"0 20px", textAlign:"center" }}>
-      <div style={{ background:C.white, borderRadius:20, padding:"60px 40px", boxShadow:"0 4px 24px rgba(42,181,181,0.12)" }}>
-        <Logo size={80}/><div style={{ fontSize:56, marginBottom:16, marginTop:16 }}>📎</div>
-        <h2 style={{ color:C.dark, fontSize:24, marginBottom:10 }}>Документы отправлены!</h2>
-        <p style={{ color:C.grayMid, fontSize:15 }}>Спасибо! Администратор получил ваши документы.</p>
-      </div>
-    </div>
-  );
-
-  if (step === "docs") return (
-    <DocumentsScreen parentName={parentName} childName={childName} prevChecked={prevChecked} prevDocs={prevDocs}
-      onSubmit={async (docData) => { await onSubmit({ ...docData, answers: { ...docData.answers, s0_1: childName } }); setDone(true); }}/>
-  );
-
-  return (
-    <div style={{ maxWidth:640, margin:"0 auto", padding:"40px 20px" }}>
-      <div style={{ background:C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", overflow:"hidden" }}>
-        <div style={{ background:`linear-gradient(135deg,${C.dark},#1a3a2a)`, padding:"28px 32px", display:"flex", alignItems:"center", gap:16 }}>
-          <Logo size={52}/>
-          <div>
-            <h1 style={{ color:C.yellow, fontSize:18, fontWeight:800, margin:"0 0 4px" }}>Отправка документов</h1>
-            <p style={{ color:C.teal, fontSize:12, margin:0 }}>Перед диагностическим консилиумом</p>
-          </div>
-        </div>
-        <div style={{ padding:"28px 32px" }}>
-          <div style={{ background:"#fff8e1", borderLeft:`4px solid ${C.yellow}`, borderRadius:"0 10px 10px 0", padding:"14px 18px", marginBottom:24, fontSize:13, color:"#555", lineHeight:1.7 }}>
-            ⏰ <b>Важно:</b> все документы не позднее <b>3 суток</b> до диагностики.<br/>
-            Если уже отправляли часть — введите ту же фамилию и мы покажем что уже есть.
-          </div>
-          <div style={{ marginBottom:16 }}>
-            <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>Фамилия и имя ребёнка <span style={{color:"#e84545"}}>*</span></label>
-            <input type="text" value={childName} onChange={e=>setChildName(e.target.value)} placeholder="Например: Иванов Артём"
-              style={{ width:"100%", border:`1.5px solid ${childName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
-          </div>
-          <div style={{ marginBottom:28 }}>
-            <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>ФИО родителя <span style={{color:"#e84545"}}>*</span></label>
-            <input type="text" value={parentName} onChange={e=>setParentName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSearch()} placeholder="Например: Иванова Мария Петровна"
-              style={{ width:"100%", border:`1.5px solid ${parentName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
-          </div>
-          <button onClick={handleSearch} disabled={!childName.trim()||!parentName.trim()||searching}
-            style={{ padding:"13px 32px", borderRadius:8, border:"none", cursor:"pointer", fontSize:15, fontWeight:700, background:C.teal, color:"#fff", opacity:childName.trim()&&parentName.trim()?1:0.4 }}>
-            {searching ? "⏳ Проверяем..." : "Перейти к документам →"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-async function apiCall(method, params = {}) {
-  const url = new URL("/api/save", window.location.origin);
-  if (method === "GET" || method === "DELETE") {
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  }
-  const res = await fetch(url.toString(), {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: method === "POST" ? JSON.stringify(params) : undefined,
-  });
-  if (!res.ok) throw new Error(`API ${res.status}`);
-  return res.json();
-}
-
-async function sendToSheets(submission) {
-  try {
-    let answers = submission.answers || {};
-    if (submission.formType === "documents") {
-      answers = {
-        checkedDocs: JSON.stringify(submission.checkedDocs || {}),
-        comment: submission.comment || "",
-        fileNames: JSON.stringify((submission.uploadedFiles || []).map(f => ({ docId: f.docId, fileName: f.fileName, fileType: f.fileType }))),
-        fileData: JSON.stringify((submission.uploadedFiles || []).map(f => ({ docId: f.docId, data: f.fileData }))),
-        s0_1: submission.answers?.s0_1 || "",
-      };
-    }
-    await apiCall("POST", {
-      date: submission.date,
-      answers,
-      parent_name: submission.parentName || "",
-      form_type: submission.formType || "anamnez",
-    });
-    return true;
-  } catch(e) {
-    console.error("Save error:", e);
-    return false;
-  }
-}
-
-async function loadFromSheets() {
-  try {
-    const result = await apiCall("GET");
-    return (result.data || []).map(row => ({
-      id: row.id,
-      date: row.date,
-      answers: typeof row.answers === "string" ? JSON.parse(row.answers) : (row.answers || {}),
-      parent_name: row.parent_name || "",
-      form_type: row.form_type || "anamnez",
-    }));
-  } catch(e) {
-    console.error("Load error:", e);
-    return [];
-  }
-}
-
-// ─── App root ─────────────────────────────────────────────────────────────────
-function AppInner() {
-  const [view, setView] = React.useState("client");
-  const [auth, setAuth] = React.useState(false);
-  const [submissions, setSubmissions] = React.useState([]);
-  const [loading, setLoading] = React.useState(false);
-  const [saveStatus, setSaveStatus] = React.useState(null);
-
-  const loadSubmissions = async () => {
-    setLoading(true);
-    try {
-      const subs = await loadFromSheets();
-      setSubmissions(Array.isArray(subs) ? subs : []);
-    } catch(e) { setSubmissions([]); }
-    setLoading(false);
-  };
-
-  const handleSubmit = async (sub) => {
-    setSaveStatus("saving");
-    try {
-      const ok = await sendToSheets(sub);
-      setSaveStatus(ok ? "ok" : "error");
-    } catch(e) { setSaveStatus("error"); }
-    setTimeout(() => setSaveStatus(null), 3000);
-  };
-
-  const handleDelete = async (sub) => {
-    try {
-      await apiCall("DELETE", { id: sub.id });
-      setSubmissions(prev => prev.filter(s => s.id !== sub.id));
-    } catch(e) { console.error("Delete error:", e); }
-  };
-
-  return (
-    <div style={{ minHeight:"100vh", background:C.grayLight, fontFamily:"'Segoe UI',Arial,sans-serif" }}>
-      <Header view={view} setView={setView} auth={auth} onLogout={() => { setAuth(false); setView("client"); }}/>
-      {saveStatus === "saving" && <div style={{ background:"#f5c842", color:"#1a2a2a", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>⏳ Сохраняем анкету...</div>}
-      {saveStatus === "ok" && <div style={{ background:"#27ae60", color:"#fff", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>✅ Анкета успешно сохранена!</div>}
-      {saveStatus === "error" && <div style={{ background:"#e84545", color:"#fff", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>⚠️ Ошибка сохранения. Проверьте интернет.</div>}
-      {view === "client" && <ClientForm onSubmit={handleSubmit}/>}
-      {view === "family" && <FamilyForm onSubmit={handleSubmit}/>}
-      {view === "docs" && <DocsOnlyForm onSubmit={handleSubmit}/>}
-      {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }}/>}
-      {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} onDelete={handleDelete}/>}
-    </div>
-  );
-}
-
-export default function App() {
-  return (
-    <ErrorBoundary>
-      <AppInner />
-    </ErrorBoundary>
-  );
-}{/* Загрузка файлов */}
-                <div style={{marginLeft:34}}>
-                  {(files[item.id]||[]).map((f,fi)=>(
-                    <div key={fi} style={{display:"flex",alignItems:"center",gap:8,background:C.tealLight,borderRadius:8,padding:"7px 12px",marginBottom:6}}>
-                      <span style={{fontSize:16}}>📎</span>
-                      <span style={{fontSize:12,color:C.tealDark,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
-                      <button onClick={()=>removeFile(item.id,fi)} style={{background:"none",border:"none",color:"#e84545",cursor:"pointer",fontSize:18,padding:0,flexShrink:0}}>×</button>
-                    </div>
-                  ))}
-                  <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",padding:"6px 14px",background:C.grayLight,borderRadius:8,border:`1px dashed ${C.grayBorder}`,fontSize:12,color:C.grayMid}}>
-                    <span>📎</span> {(files[item.id]||[]).length>0?"Добавить ещё файл":"Прикрепить файл или фото"}
-                    <input type="file" accept="image/*,.pdf,.doc,.docx" multiple style={{display:"none"}} onChange={e=>handleFile(item.id,e)}/>
-                  </label>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}
-      <div style={{background:C.white,borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",padding:"20px",marginBottom:20}}>
-        <p style={{fontSize:14,fontWeight:600,color:C.dark,marginBottom:8}}>💬 Дополнительный комментарий</p>
-        <textarea rows={3} value={comment} onChange={e=>setComment(e.target.value)} placeholder="Например: анализ ЭЭГ сдаём на следующей неделе..." style={{width:"100%",border:`1.5px solid ${C.grayBorder}`,borderRadius:8,padding:"10px 14px",fontSize:14,color:C.dark,outline:"none",resize:"vertical",boxSizing:"border-box",background:"#fafcfc",fontFamily:"inherit"}}/>
+
+      <div style={{ background:C.white, borderRadius:14, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"20px", marginBottom:20 }}>
+        <p style={{ fontSize:14, fontWeight:600, color:C.dark, marginBottom:8 }}>💬 Дополнительный комментарий</p>
+        <textarea rows={3} value={comment} onChange={e => setComment(e.target.value)}
+          placeholder="Например: анализ ЭЭГ сдаём на следующей неделе..."
+          style={{ width:"100%", border:"1.5px solid #e2e8f0", borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", resize:"vertical", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}
+        />
       </div>
-      <div style={{background:"linear-gradient(135deg,#1a3a2a,#1a2a1a)",borderRadius:14,padding:"24px 28px",textAlign:"center"}}>
-        <Btn onClick={handleSubmit} variant="yellow" disabled={uploading} style={{fontSize:15,padding:"14px 36px"}}>
-          {uploading?"⏳ Отправляем...":`✅ Отправить документы (${totalChecked} отмечено, ${totalFiles} файлов)`}
+
+      <div style={{ background:"linear-gradient(135deg,#1a3a2a,#1a2a1a)", borderRadius:14, padding:"24px 28px", textAlign:"center" }}>
+        <p style={{ color:"rgba(255,255,255,0.7)", fontSize:13, marginBottom:16, lineHeight:1.6 }}>
+          Нажимая кнопку вы отправляете список отмеченных документов и прикреплённые файлы администратору центра.
+        </p>
+        <Btn onClick={handleSubmit} variant="yellow" disabled={uploading} style={{ fontSize:15, padding:"14px 36px" }}>
+          {uploading ? "⏳ Отправляем..." : "✅ Отправить документы (" + totalChecked + " отмечено, " + totalFiles + " файлов)"}
         </Btn>
       </div>
     </div>
   );
 }
-
 
 // ─── Admin login ──────────────────────────────────────────────────────────────
 function AdminLogin({ onLogin }) {
