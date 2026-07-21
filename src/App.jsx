@@ -842,7 +842,7 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked={}, prev
                   ))}
                   <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",padding:"6px 14px",background:C.grayLight,borderRadius:8,border:"1px dashed #e2e8f0",fontSize:12,color:"#718096"}}>
                     <span>📎</span> {(files[item.id]||[]).length>0?"Добавить ещё файл":"Прикрепить файл или фото"}
-                    <input type="file" accept="image/*,.pdf,.doc,.docx" multiple style={{display:"none"}} onChange={e=>handleFile(item.id,e)}/>
+                    <input type="file" accept="image/jpeg,image/png,image/heic,.pdf,.doc,.docx" multiple style={{display:"none"}} onChange={e=>handleFile(item.id,e)}/>
                   </label>
                 </div>
                 </div>
