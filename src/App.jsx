@@ -1090,8 +1090,6 @@ function AppInner() {
       {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }}/>}
       {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} onDelete={handleDelete}/>}
     </div>
-  );
-}
             ))}
           </div>
         </div>
