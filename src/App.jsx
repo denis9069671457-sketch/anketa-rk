@@ -363,6 +363,7 @@ function exportToWord(submission) {
   }
 
   // Анкета Лынской или Семейный фон
+  const h2Bg = isFamily ? "#f0ecf8" : "#e8f5f5";
   let html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"/>
   <style>
     @media print { .top-bar { display: none !important; } body { margin: 10mm 15mm; } }
@@ -375,7 +376,7 @@ function exportToWord(submission) {
     .title-block h1 { font-size: 15px; font-weight: bold; margin: 0 0 4px; }
     .title-block p { font-size: 11px; color: #555; margin: 2px 0; }
     table { width: 100%; border-collapse: collapse; }
-    h2 { font-size: 13px; font-weight: bold; text-align: center; background: ${isFamily ? "#f0ecf8" : "#e8f5f5"}; border: 1px solid #aaa; padding: 5px; margin: 10px 0 0; }
+    h2 { font-size: 13px; font-weight: bold; text-align: center; background: ${h2Bg}; border: 1px solid #aaa; padding: 5px; margin: 10px 0 0; }
     td { border: 1px solid #999; border-top: none; padding: 5px 8px; font-size: 11px; vertical-align: top; }
     .q-cell { width: 55%; background: #fafafa; }
     .q-num { color: #888; font-size: 10px; margin-right: 4px; }
