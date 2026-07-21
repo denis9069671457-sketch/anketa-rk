@@ -1,13 +1,4 @@
-<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>App.jsx</title>
-<style>body{font-family:Arial,sans-serif;background:#f0fafa;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px}h1{color:#1a8a8a;font-size:20px;margin-bottom:8px;text-align:center}p{color:#555;font-size:14px;margin-bottom:20px;text-align:center}.btn{background:#2ab5b5;color:white;border:none;border-radius:12px;padding:16px 36px;font-size:17px;font-weight:bold;cursor:pointer;margin-bottom:12px;width:100%;max-width:400px}.status{font-size:15px;color:#2ab5b5;font-weight:bold;min-height:24px;text-align:center;margin-bottom:16px}.info{background:#fff;border-radius:12px;padding:16px 20px;max-width:500px;width:100%;border-left:4px solid #2ab5b5;font-size:13px;color:#444;line-height:2}.info b{color:#1a8a8a}</style>
-</head><body>
-<h1>📋 App.jsx — несколько файлов</h1>
-<p>Нажмите кнопку — весь код скопируется</p>
-<button class="btn" onclick="copyCode()">📋 Скопировать App.jsx</button>
-<div class="status" id="status"></div>
-<div class="info"><b>Шаги:</b><br/>1. GitHub → src → App.jsx → ✏️ → Ctrl+A → Delete → вставить → Commit<br/>2. Подождите 2 минуты</div>
-<script>
-const CODE=`import React, { useState, useEffect, useRef } from "react"; // v2
+import React, { useState, useEffect, useRef } from "react"; // v2
 import LOGO_B64 from "./logo.png";
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -345,34 +336,34 @@ function exportToWord(submission) {
     const fileData = (() => { try { return JSON.parse(submission.answers?.fileData || "[]"); } catch(e) { return []; } })();
     const totalChecked = Object.values(checked).filter(Boolean).length;
 
-    let html = \`<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"/>
+    let html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"/>
     <style>@media print{.bar{display:none!important}body{margin:10mm 15mm}}body{font-family:Arial,sans-serif;font-size:12px;margin:20px 30px;color:#111}.bar{position:fixed;top:0;left:0;right:0;background:#1a2a2a;padding:10px 20px;display:flex;gap:12px;align-items:center;z-index:99}.bar span{color:#2ab5b5;font-weight:bold;flex:1}.bp{background:#2ab5b5;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:bold;cursor:pointer}.cnt{margin-top:52px}.ttl{text-align:center;margin-bottom:16px}.ttl h1{font-size:15px;font-weight:bold;margin:0 0 4px}.ttl p{font-size:11px;color:#555;margin:2px 0}h2{font-size:13px;font-weight:bold;background:#f0ecf8;border:1px solid #aaa;padding:5px;margin:10px 0 0}.row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #eee;font-size:12px}.chk{font-size:16px}.file{color:#2ab5b5;font-weight:bold}</style>
     </head><body>
-    <div class="bar"><span>Документы: \${esc(submission.parent_name||"—")}</span><button class="bp" onclick="window.print()">🖨️ Печать</button></div>
-    <div class="cnt"><div class="ttl"><h1>Список документов клиента</h1><p>Центр Рината Каримова · \${new Date(submission.date).toLocaleString("ru-RU")}</p><p>Родитель: <b>\${esc(submission.parent_name||"—")}</b> · Отмечено: \${totalChecked} документов</p></div>\`;
+    <div class="bar"><span>Документы: ${esc(submission.parent_name||"—")}</span><button class="bp" onclick="window.print()">🖨️ Печать</button></div>
+    <div class="cnt"><div class="ttl"><h1>Список документов клиента</h1><p>Центр Рината Каримова · ${new Date(submission.date).toLocaleString("ru-RU")}</p><p>Родитель: <b>${esc(submission.parent_name||"—")}</b> · Отмечено: ${totalChecked} документов</p></div>`;
 
     DOCUMENTS.forEach(group => {
-      html += \`<h2>\${esc(group.category)}\${group.required?" (ОБЯЗАТЕЛЬНО)":""}</h2>\`;
+      html += `<h2>${esc(group.category)}${group.required?" (ОБЯЗАТЕЛЬНО)":""}</h2>`;
       group.items.forEach(item => {
         const isChecked = checked[item.id];
         const file = fileNames.find(f => f.docId === item.id);
         const fd = fileData.find(f => f.docId === item.id);
-        html += \`<div class="row"><span class="chk">\${isChecked?"✅":"⬜"}</span><span style="flex:1">\${esc(item.label)}</span>\`;
-        if (file && fd) html += \`<a class="file" href="\${fd.data}" download="\${file.fileName}">📎 \${esc(file.fileName)}</a>\`;
-        html += \`</div>\`;
+        html += `<div class="row"><span class="chk">${isChecked?"✅":"⬜"}</span><span style="flex:1">${esc(item.label)}</span>`;
+        if (file && fd) html += `<a class="file" href="${fd.data}" download="${file.fileName}">📎 ${esc(file.fileName)}</a>`;
+        html += `</div>`;
       });
     });
 
     if (submission.answers?.comment) {
-      html += \`<div style="margin-top:16px;padding:12px;background:#f9f9f9;border-radius:8px;font-size:12px"><b>Комментарий:</b> \${esc(submission.answers.comment)}</div>\`;
+      html += `<div style="margin-top:16px;padding:12px;background:#f9f9f9;border-radius:8px;font-size:12px"><b>Комментарий:</b> ${esc(submission.answers.comment)}</div>`;
     }
-    html += \`</div></body></html>\`;
+    html += `</div></body></html>`;
     window.open(URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})),"_blank");
     return;
   }
 
   // Анкета Лынской или Семейный фон
-  let html = \`<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"/>
+  let html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"/>
   <style>
     @media print { .top-bar { display: none !important; } body { margin: 10mm 15mm; } }
     body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px 30px; color: #111; }
@@ -384,40 +375,40 @@ function exportToWord(submission) {
     .title-block h1 { font-size: 15px; font-weight: bold; margin: 0 0 4px; }
     .title-block p { font-size: 11px; color: #555; margin: 2px 0; }
     table { width: 100%; border-collapse: collapse; }
-    h2 { font-size: 13px; font-weight: bold; text-align: center; background: \${isFamily ? "#f0ecf8" : "#e8f5f5"}; border: 1px solid #aaa; padding: 5px; margin: 10px 0 0; }
+    h2 { font-size: 13px; font-weight: bold; text-align: center; background: ${isFamily ? "#f0ecf8" : "#e8f5f5"}; border: 1px solid #aaa; padding: 5px; margin: 10px 0 0; }
     td { border: 1px solid #999; border-top: none; padding: 5px 8px; font-size: 11px; vertical-align: top; }
     .q-cell { width: 55%; background: #fafafa; }
     .q-num { color: #888; font-size: 10px; margin-right: 4px; }
     .empty { color: #bbb; font-style: italic; }
   </style></head><body>
   <div class="top-bar">
-    <span>\${esc(title)}: \${esc(submission.answers?.[childKey]||"—")}</span>
+    <span>${esc(title)}: ${esc(submission.answers?.[childKey]||"—")}</span>
     <button class="btn-print" onclick="window.print()">🖨️ Печать / PDF</button>
     <span style="background:#f5c842;color:#1a2a2a;border-radius:8px;padding:8px 14px;font-size:11px;font-weight:bold">iPad: Печать → Файлы</span>
   </div>
   <div class="content">
     <div class="title-block">
-      <h1>\${esc(title)}</h1>
-      <p>Центр Рината Каримова · Дата: \${new Date(submission.date).toLocaleString("ru-RU")}</p>
-      <p>Родитель: <b>\${esc(submission.parent_name||"—")}</b></p>
+      <h1>${esc(title)}</h1>
+      <p>Центр Рината Каримова · Дата: ${new Date(submission.date).toLocaleString("ru-RU")}</p>
+      <p>Родитель: <b>${esc(submission.parent_name||"—")}</b></p>
     </div>
     <table>
-      <tr><td class="q-cell">Фамилия, имя ребенка</td><td>\${esc(submission.answers?.[childKey])}</td></tr>
-      <tr><td class="q-cell">Дата рождения</td><td>\${esc(submission.answers?.[dobKey])}</td></tr>
-      <tr><td class="q-cell">Возраст на момент диагностики</td><td>\${esc(submission.answers?.[ageKey])}</td></tr>
-      <tr><td class="q-cell">Город проживания</td><td>\${esc(submission.answers?.[cityKey])}</td></tr>
-    </table>\`;
+      <tr><td class="q-cell">Фамилия, имя ребенка</td><td>${esc(submission.answers?.[childKey])}</td></tr>
+      <tr><td class="q-cell">Дата рождения</td><td>${esc(submission.answers?.[dobKey])}</td></tr>
+      <tr><td class="q-cell">Возраст на момент диагностики</td><td>${esc(submission.answers?.[ageKey])}</td></tr>
+      <tr><td class="q-cell">Город проживания</td><td>${esc(submission.answers?.[cityKey])}</td></tr>
+    </table>`;
 
   sections.slice(1).forEach(sec => {
-    html += \`<h2>\${sec.icon || ""} \${esc(sec.title)}</h2><table>\`;
+    html += `<h2>${sec.icon || ""} ${esc(sec.title)}</h2><table>`;
     sec.fields.forEach((f, i) => {
       const ans = submission.answers?.[f.id];
-      html += \`<tr><td class="q-cell"><span class="q-num">\${i+1}.</span>\${esc(f.label)}</td><td class="\${ans?"":"empty"}">\${esc(ans)}</td></tr>\`;
+      html += `<tr><td class="q-cell"><span class="q-num">${i+1}.</span>${esc(f.label)}</td><td class="${ans?"":"empty"}">${esc(ans)}</td></tr>`;
     });
-    html += \`</table>\`;
+    html += `</table>`;
   });
 
-  html += \`</div></body></html>\`;
+  html += `</div></body></html>`;
   window.open(URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})),"_blank");
 }
 
@@ -439,11 +430,11 @@ function Field({ field, value, onChange }) {
 }
 
 function ProgressBar({ pct, color, height=6 }) {
-  return <div style={{height,background:C.grayBorder,borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:\`\${pct}%\`,background:color||C.teal,borderRadius:4,transition:"width .4s"}}/></div>;
+  return <div style={{height,background:C.grayBorder,borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:color||C.teal,borderRadius:4,transition:"width .4s"}}/></div>;
 }
 
 function Badge({ color, children }) {
-  return <span style={{display:"inline-block",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:700,background:color+"22",color,border:\`1px solid \${color}44\`}}>{children}</span>;
+  return <span style={{display:"inline-block",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:700,background:color+"22",color,border:`1px solid ${color}44`}}>{children}</span>;
 }
 
 function Btn({ onClick, variant="primary", disabled, children, style:extra={} }) {
@@ -467,7 +458,7 @@ function Header({ view, setView, auth, onLogout }) {
   const handleNav = (key) => { if (key==="admin") { auth?setView("admin"):setView("adminLogin"); } else { setView(key); } };
   const isActive = (key) => view===key || (key==="admin" && view==="adminLogin");
   return (
-    <header style={{background:C.dark,borderBottom:\`3px solid \${C.teal}\`,position:"sticky",top:0,zIndex:100}}>
+    <header style={{background:C.dark,borderBottom:`3px solid ${C.teal}`,position:"sticky",top:0,zIndex:100}}>
       <div style={{maxWidth:900,margin:"0 auto",padding:"10px 16px 0",display:"flex",alignItems:"center",gap:12}}>
         <Logo size={36}/>
         <div style={{flex:1,minWidth:0}}>
@@ -492,7 +483,7 @@ function WelcomeScreen({ onStart }) {
   return (
     <div style={{maxWidth:780,margin:"0 auto",padding:"40px 20px"}}>
       <div style={{background:C.white,borderRadius:20,boxShadow:"0 4px 24px rgba(42,181,181,0.12)",overflow:"hidden"}}>
-        <div style={{background:\`linear-gradient(135deg,\${C.dark} 0%,#1a3a3a 100%)\`,padding:"36px 40px",display:"flex",alignItems:"center",gap:28}}>
+        <div style={{background:`linear-gradient(135deg,${C.dark} 0%,#1a3a3a 100%)`,padding:"36px 40px",display:"flex",alignItems:"center",gap:28}}>
           <Logo size={80}/>
           <div>
             <h1 style={{color:C.yellow,fontSize:26,margin:"0 0 6px",fontWeight:800}}>Анкета по сбору анамнеза</h1>
@@ -500,12 +491,12 @@ function WelcomeScreen({ onStart }) {
           </div>
         </div>
         <div style={{padding:"32px 40px"}}>
-          <div style={{background:C.tealLight,borderRadius:12,padding:20,marginBottom:28,borderLeft:\`4px solid \${C.teal}\`,fontSize:14,color:"#333",lineHeight:1.8}}>
+          <div style={{background:C.tealLight,borderRadius:12,padding:20,marginBottom:28,borderLeft:`4px solid ${C.teal}`,fontSize:14,color:"#333",lineHeight:1.8}}>
             Анкета содержит <b style={{color:C.tealDark}}>{TOTAL} вопросов</b>, разбитых на <b style={{color:C.tealDark}}>{SECTIONS.length} разделов</b>. Пожалуйста, отвечайте максимально подробно.
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:32}}>
             {SECTIONS.map(s=>(
-              <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:C.grayLight,borderRadius:10,border:\`1px solid \${C.grayBorder}\`}}>
+              <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:C.grayLight,borderRadius:10,border:`1px solid ${C.grayBorder}`}}>
                 <span style={{fontSize:20}}>{s.icon}</span>
                 <span style={{fontSize:13,color:C.gray,flex:1}}>{s.title}</span>
                 <Badge color={s.color}>{s.fields.length}</Badge>
@@ -525,11 +516,11 @@ function SectionBlock({ section, answers, onChange }) {
   const pct = Math.round(filled/section.fields.length*100);
   return (
     <div style={{background:C.white,borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",marginBottom:24,overflow:"hidden"}}>
-      <div style={{background:\`linear-gradient(90deg,\${section.color}18,transparent)\`,borderTop:\`3px solid \${section.color}\`,padding:"20px 28px 16px"}}>
+      <div style={{background:`linear-gradient(90deg,${section.color}18,transparent)`,borderTop:`3px solid ${section.color}`,padding:"20px 28px 16px"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
           <span style={{fontSize:22}}>{section.icon}</span>
           <span style={{fontSize:17,fontWeight:700,color:C.dark}}>{section.title}</span>
-          <span style={{marginLeft:"auto",display:"inline-block",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:700,background:section.color+"22",color:section.color,border:\`1px solid \${section.color}44\`}}>{filled}/{section.fields.length}</span>
+          <span style={{marginLeft:"auto",display:"inline-block",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:700,background:section.color+"22",color:section.color,border:`1px solid ${section.color}44`}}>{filled}/{section.fields.length}</span>
         </div>
         <ProgressBar pct={pct} color={section.color}/>
       </div>
@@ -555,7 +546,7 @@ function ConsentScreen({ onAccept }) {
   return (
     <div style={{maxWidth:780,margin:"0 auto",padding:"40px 20px"}}>
       <div style={{background:C.white,borderRadius:20,boxShadow:"0 4px 24px rgba(42,181,181,0.12)",overflow:"hidden"}}>
-        <div style={{background:\`linear-gradient(135deg,\${C.dark} 0%,#1a3a3a 100%)\`,padding:"28px 36px",display:"flex",alignItems:"center",gap:20}}>
+        <div style={{background:`linear-gradient(135deg,${C.dark} 0%,#1a3a3a 100%)`,padding:"28px 36px",display:"flex",alignItems:"center",gap:20}}>
           <Logo size={56}/>
           <div>
             <h1 style={{color:C.yellow,fontSize:20,margin:"0 0 4px",fontWeight:800}}>Согласие на обработку персональных данных</h1>
@@ -567,7 +558,7 @@ function ConsentScreen({ onAccept }) {
             <b style={{color:C.tealDark}}>Оператор:</b> ИП Каримов Ринат Алишерович · ИНН 502239463615<br/>
             143401, Московская область, г. Красногорск, бульвар Павшинский, д. 3
           </div>
-          <div style={{background:"#f8fefe",border:\`1px solid \${C.tealLight}\`,borderRadius:12,padding:"20px 24px",marginBottom:20,maxHeight:280,overflowY:"auto",fontSize:13,color:"#333",lineHeight:1.8}}>
+          <div style={{background:"#f8fefe",border:`1px solid ${C.tealLight}`,borderRadius:12,padding:"20px 24px",marginBottom:20,maxHeight:280,overflowY:"auto",fontSize:13,color:"#333",lineHeight:1.8}}>
             <p style={{fontWeight:700,marginBottom:12,fontSize:14,textAlign:"center"}}>СОГЛАСИЕ НА ОБРАБОТКУ ПЕРСОНАЛЬНЫХ ДАННЫХ</p>
             <p>Я, являясь родителем (законным представителем) несовершеннолетнего ребёнка, в соответствии с Федеральным законом от 27.07.2006 № 152-ФЗ, даю согласие <b>ИП Каримов Ринат Алишерович</b> на обработку персональных данных в целях диагностики и составления рекомендаций.</p>
             <p style={{marginTop:10,fontWeight:600}}>Перечень данных:</p>
@@ -582,8 +573,8 @@ function ConsentScreen({ onAccept }) {
               style={{...inputStyle,borderColor:nameErr?"#e84545":parentName?C.teal:C.grayBorder}}/>
             {nameErr&&<p style={{color:"#e84545",fontSize:12,margin:"4px 0 0"}}>Пожалуйста, укажите ФИО</p>}
           </div>
-          <div onClick={()=>setChecked(p=>!p)} style={{display:"flex",alignItems:"flex-start",gap:12,cursor:"pointer",marginBottom:24,padding:"14px 18px",background:checked?"#e8f8f8":C.grayLight,borderRadius:10,border:\`2px solid \${checked?C.teal:C.grayBorder}\`,transition:"all .2s"}}>
-            <div style={{width:22,height:22,borderRadius:5,border:\`2px solid \${checked?C.teal:"#aaa"}\`,background:checked?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div onClick={()=>setChecked(p=>!p)} style={{display:"flex",alignItems:"flex-start",gap:12,cursor:"pointer",marginBottom:24,padding:"14px 18px",background:checked?"#e8f8f8":C.grayLight,borderRadius:10,border:`2px solid ${checked?C.teal:C.grayBorder}`,transition:"all .2s"}}>
+            <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${checked?C.teal:"#aaa"}`,background:checked?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
               {checked&&<span style={{color:"#fff",fontSize:14,fontWeight:900}}>✓</span>}
             </div>
             <p style={{margin:0,fontSize:13,color:"#333",lineHeight:1.6}}>Я ознакомился(-ась) с условиями и даю согласие на обработку персональных данных своих и своего ребёнка в соответствии с Федеральным законом № 152-ФЗ.</p>
@@ -668,7 +659,7 @@ function ClientForm({ onSubmit }) {
         <div style={{background:C.white,borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",padding:"16px 20px",marginBottom:20}}>
           <ProgressBar pct={fPct} color="linear-gradient(90deg,#7b5ea7,#f5c842)" height={8}/>
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:12}}>
-            {FSECS.map((s,i)=>{const sf=s.fields.filter(f=>familyAnswers[f.id]).length;const done=sf===s.fields.length;const active=familyCurSec===i;return(<button key={s.id} onClick={()=>goFSec(i)} style={{padding:"5px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,border:\`2px solid \${active?s.color:done?s.color+"66":C.grayBorder}\`,background:active?s.color:done?s.color+"15":C.grayLight,color:active?"#fff":done?s.color:C.grayMid}}>{s.icon} {sf}/{s.fields.length}</button>);})}
+            {FSECS.map((s,i)=>{const sf=s.fields.filter(f=>familyAnswers[f.id]).length;const done=sf===s.fields.length;const active=familyCurSec===i;return(<button key={s.id} onClick={()=>goFSec(i)} style={{padding:"5px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,border:`2px solid ${active?s.color:done?s.color+"66":C.grayBorder}`,background:active?s.color:done?s.color+"15":C.grayLight,color:active?"#fff":done?s.color:C.grayMid}}>{s.icon} {sf}/{s.fields.length}</button>);})}
           </div>
         </div>
         <SectionBlock section={fSec} answers={familyAnswers} onChange={(id,val)=>setFamilyAnswers(p=>({...p,[id]:val}))}/>
@@ -692,9 +683,9 @@ function ClientForm({ onSubmit }) {
           <span style={{fontWeight:700,color:C.dark,fontSize:14}}>Общий прогресс</span>
           <span style={{color:C.teal,fontWeight:700,fontSize:14}}>{pct}% · {filled}/{TOTAL}</span>
         </div>
-        <ProgressBar pct={pct} color={\`linear-gradient(90deg,\${C.teal},\${C.yellow})\`} height={8}/>
+        <ProgressBar pct={pct} color={`linear-gradient(90deg,${C.teal},${C.yellow})`} height={8}/>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:14}}>
-          {SECTIONS.map((s,i)=>{const sf=s.fields.filter(f=>answers[f.id]).length;const done=sf===s.fields.length;const active=curSec===i;return(<button key={s.id} onClick={()=>goSec(i)} style={{padding:"5px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,border:\`2px solid \${active?s.color:done?s.color+"66":C.grayBorder}\`,background:active?s.color:done?s.color+"15":C.grayLight,color:active?"#fff":done?s.color:C.grayMid}}>{s.icon} {sf}/{s.fields.length}</button>);})}
+          {SECTIONS.map((s,i)=>{const sf=s.fields.filter(f=>answers[f.id]).length;const done=sf===s.fields.length;const active=curSec===i;return(<button key={s.id} onClick={()=>goSec(i)} style={{padding:"5px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,border:`2px solid ${active?s.color:done?s.color+"66":C.grayBorder}`,background:active?s.color:done?s.color+"15":C.grayLight,color:active?"#fff":done?s.color:C.grayMid}}>{s.icon} {sf}/{s.fields.length}</button>);})}
         </div>
       </div>
       <SectionBlock section={sec} answers={answers} onChange={handleChange}/>
@@ -742,7 +733,7 @@ function FamilyForm({ onSubmit }) {
         </div>
         <ProgressBar pct={pct} color="linear-gradient(90deg,#7b5ea7,#f5c842)" height={8}/>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:14}}>
-          {FAMILY_SECTIONS.map((s,i)=>{const sf=s.fields.filter(f=>answers[f.id]).length;const done=sf===s.fields.length;const active=curSec===i;return(<button key={s.id} onClick={()=>goSec(i)} style={{padding:"5px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,border:\`2px solid \${active?s.color:done?s.color+"66":C.grayBorder}\`,background:active?s.color:done?s.color+"15":C.grayLight,color:active?"#fff":done?s.color:C.grayMid}}>{s.icon} {sf}/{s.fields.length}</button>);})}
+          {FAMILY_SECTIONS.map((s,i)=>{const sf=s.fields.filter(f=>answers[f.id]).length;const done=sf===s.fields.length;const active=curSec===i;return(<button key={s.id} onClick={()=>goSec(i)} style={{padding:"5px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,border:`2px solid ${active?s.color:done?s.color+"66":C.grayBorder}`,background:active?s.color:done?s.color+"15":C.grayLight,color:active?"#fff":done?s.color:C.grayMid}}>{s.icon} {sf}/{s.fields.length}</button>);})}
         </div>
       </div>
       <SectionBlock section={sec} answers={answers} onChange={handleChange}/>
@@ -816,22 +807,22 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked={}, prev
           Все материалы необходимо прислать <b style={{color:C.yellow}}>не позднее чем за 3 суток</b> до начала диагностики. Отметьте галочками что уже есть и прикрепите файлы.
         </div>
       </div>
-      {prevDocs && (<div style={{background:"#fff8e1",borderLeft:\`4px solid \${C.yellow}\`,borderRadius:"0 12px 12px 0",padding:"14px 18px",marginBottom:16,fontSize:13,color:"#555",lineHeight:1.7}}>🔄 <b>Найдена предыдущая отправка</b> от {new Date(prevDocs.date).toLocaleDateString("ru-RU")}. Ранее отмеченные документы уже отмечены. Добавьте недостающие.</div>)}
+      {prevDocs && (<div style={{background:"#fff8e1",borderLeft:`4px solid ${C.yellow}`,borderRadius:"0 12px 12px 0",padding:"14px 18px",marginBottom:16,fontSize:13,color:"#555",lineHeight:1.7}}>🔄 <b>Найдена предыдущая отправка</b> от {new Date(prevDocs.date).toLocaleDateString("ru-RU")}. Ранее отмеченные документы уже отмечены. Добавьте недостающие.</div>)}
       {totalChecked>0&&(<div style={{background:C.tealLight,borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:C.tealDark,fontWeight:600}}>✅ Отмечено: {totalChecked} из {allItems.length} · Прикреплено файлов: {totalFiles}</div>)}
       {DOCUMENTS.map(docGroup=>(
         <div key={docGroup.id} style={{background:C.white,borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",marginBottom:16,overflow:"hidden"}}>
-          <div style={{padding:"16px 20px",borderBottom:\`2px solid \${docGroup.required?"#fee2e2":C.tealLight}\`,display:"flex",alignItems:"center",gap:10}}>
+          <div style={{padding:"16px 20px",borderBottom:`2px solid ${docGroup.required?"#fee2e2":C.tealLight}`,display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:16,fontWeight:700,color:C.dark}}>{docGroup.category}</span>
             {docGroup.required&&<span style={{fontSize:11,fontWeight:700,background:"#fee2e2",color:"#e84545",padding:"2px 8px",borderRadius:10}}>ОБЯЗАТЕЛЬНО</span>}
           </div>
           <div style={{padding:"12px 20px"}}>
             {docGroup.items.map(item=>(
-              <div key={item.id} style={{marginBottom:14,paddingBottom:14,borderBottom:\`1px solid \${C.grayBorder}\`}}>
+              <div key={item.id} style={{marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${C.grayBorder}`}}>
                 <div
                   onClick={()=>{ if(files[item.id]) toggleCheck(item.id); }}
                   style={{display:"flex",alignItems:"flex-start",gap:12,cursor:files[item.id]?"pointer":"not-allowed",marginBottom:8,opacity:files[item.id]?1:0.7}}
                 >
-                  <div style={{width:22,height:22,borderRadius:5,border:\`2px solid \${checked[item.id]?C.teal:files[item.id]?"#aaa":"#ddd"}\`,background:checked[item.id]?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
+                  <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${checked[item.id]?C.teal:files[item.id]?"#aaa":"#ddd"}`,background:checked[item.id]?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
                     {checked[item.id]&&<span style={{color:"#fff",fontSize:13,fontWeight:900}}>✓</span>}
                   </div>
                   <div>
@@ -848,7 +839,7 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked={}, prev
                       <button onClick={()=>removeFile(item.id)} style={{background:"none",border:"none",color:"#e84545",cursor:"pointer",fontSize:18,padding:0}}>×</button>
                     </div>
                   ):(
-                    <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",padding:"6px 14px",background:C.grayLight,borderRadius:8,border:\`1px dashed \${C.grayBorder}\`,fontSize:12,color:C.grayMid}}>
+                    <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",padding:"6px 14px",background:C.grayLight,borderRadius:8,border:`1px dashed ${C.grayBorder}`,fontSize:12,color:C.grayMid}}>
                       <span>📎</span> Прикрепить файл или фото
                       <input type="file" accept="image/*,.pdf,.doc,.docx" style={{display:"none"}} onChange={e=>handleFile(item.id,e)}/>
                     </label>
@@ -861,11 +852,11 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked={}, prev
       ))}
       <div style={{background:C.white,borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",padding:"20px",marginBottom:20}}>
         <p style={{fontSize:14,fontWeight:600,color:C.dark,marginBottom:8}}>💬 Дополнительный комментарий</p>
-        <textarea rows={3} value={comment} onChange={e=>setComment(e.target.value)} placeholder="Например: анализ ЭЭГ сдаём на следующей неделе..." style={{width:"100%",border:\`1.5px solid \${C.grayBorder}\`,borderRadius:8,padding:"10px 14px",fontSize:14,color:C.dark,outline:"none",resize:"vertical",boxSizing:"border-box",background:"#fafcfc",fontFamily:"inherit"}}/>
+        <textarea rows={3} value={comment} onChange={e=>setComment(e.target.value)} placeholder="Например: анализ ЭЭГ сдаём на следующей неделе..." style={{width:"100%",border:`1.5px solid ${C.grayBorder}`,borderRadius:8,padding:"10px 14px",fontSize:14,color:C.dark,outline:"none",resize:"vertical",boxSizing:"border-box",background:"#fafcfc",fontFamily:"inherit"}}/>
       </div>
       <div style={{background:"linear-gradient(135deg,#1a3a2a,#1a2a1a)",borderRadius:14,padding:"24px 28px",textAlign:"center"}}>
         <Btn onClick={handleSubmit} variant="yellow" disabled={uploading} style={{fontSize:15,padding:"14px 36px"}}>
-          {uploading?"⏳ Отправляем...":\`✅ Отправить документы (\${totalChecked} отмечено, \${totalFiles} файлов)\`}
+          {uploading?"⏳ Отправляем...":`✅ Отправить документы (${totalChecked} отмечено, ${totalFiles} файлов)`}
         </Btn>
       </div>
     </div>
@@ -883,7 +874,7 @@ function AdminLogin({ onLogin }) {
       <div style={{ background:C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", padding:"48px 40px", textAlign:"center" }}>
         <Logo size={64}/>
         <h2 style={{ fontSize:22, color:C.dark, margin:"20px 0 24px" }}>Вход для администратора</h2>
-        <input type="password" style={{ width:"100%", border:\`1.5px solid \${C.grayBorder}\`, borderRadius:8, padding:"10px 14px", fontSize:14, textAlign:"center", outline:"none", marginBottom:12, boxSizing:"border-box", background:"#fafcfc", color:C.dark }}
+        <input type="password" style={{ width:"100%", border:`1.5px solid ${C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, textAlign:"center", outline:"none", marginBottom:12, boxSizing:"border-box", background:"#fafcfc", color:C.dark }}
           placeholder="Введите пароль" value={pw}
           onChange={e => { setPw(e.target.value); setErr(false); }}
           onKeyDown={e => e.key === "Enter" && check()} />
@@ -930,7 +921,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
         <input type="password" placeholder="Пароль для удаления" value={deletePw}
           onChange={e => { setDeletePw(e.target.value); setDeleteErr(false); }}
           onKeyDown={e => e.key === "Enter" && executeDelete()}
-          style={{ width:"100%", border:\`1.5px solid \${deleteErr?"#e05050":"#e2e8f0"}\`, borderRadius:8, padding:"10px 14px", fontSize:14, textAlign:"center", outline:"none", marginBottom:8, boxSizing:"border-box" }} autoFocus/>
+          style={{ width:"100%", border:`1.5px solid ${deleteErr?"#e05050":"#e2e8f0"}`, borderRadius:8, padding:"10px 14px", fontSize:14, textAlign:"center", outline:"none", marginBottom:8, boxSizing:"border-box" }} autoFocus/>
         {deleteErr && <p style={{ color:"#e05050", fontSize:13, margin:"0 0 12px" }}>Неверный пароль</p>}
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={() => setDeleteTarget(null)} style={{ flex:1, padding:"10px", borderRadius:8, border:"1.5px solid #e2e8f0", background:"#f4f6f8", cursor:"pointer", fontSize:14, fontWeight:600 }}>Отмена</button>
@@ -963,7 +954,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
               const fileData = (() => { try { return JSON.parse(sel.answers?.fileData || "[]"); } catch(e) { return []; } })();
               return DOCUMENTS.map(group => (
                 <div key={group.id} style={{ marginBottom:16 }}>
-                  <p style={{ fontSize:13, fontWeight:700, color:C.dark, marginBottom:8, borderBottom:\`2px solid \${group.required?"#fee2e2":C.tealLight}\`, paddingBottom:6 }}>
+                  <p style={{ fontSize:13, fontWeight:700, color:C.dark, marginBottom:8, borderBottom:`2px solid ${group.required?"#fee2e2":C.tealLight}`, paddingBottom:6 }}>
                     {group.category} {group.required && <span style={{fontSize:11,color:"#e84545"}}>(ОБЯЗАТЕЛЬНО)</span>}
                   </p>
                   {group.items.map(item => {
@@ -986,12 +977,12 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
         ) : (
           (sel.form_type === "family" ? FAMILY_SECTIONS : SECTIONS).map(sec => (
             <div key={sec.id} style={{ marginBottom:24 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12, paddingBottom:8, borderBottom:\`2px solid \${sec.color}33\` }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12, paddingBottom:8, borderBottom:`2px solid ${sec.color}33` }}>
                 <span style={{ fontSize:18 }}>{sec.icon}</span>
                 <span style={{ fontSize:15, fontWeight:700, color:C.dark }}>{sec.title}</span>
               </div>
               {sec.fields.map((f, i) => (
-                <div key={f.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:\`1px solid \${C.grayBorder}\` }}>
+                <div key={f.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.grayBorder}` }}>
                   <p style={{ fontSize:12, color:"#aaa", margin:"0 0 3px" }}>{i+1}. {f.label}</p>
                   <p style={{ fontSize:13, color:sel.answers?.[f.id]?C.dark:"#ccc", margin:0, background:C.grayLight, padding:"7px 10px", borderRadius:6, whiteSpace:"pre-wrap" }}>
                     {sel.answers?.[f.id] || "Нет ответа"}
@@ -1022,7 +1013,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
         <div style={{ position:"relative", marginBottom:16 }}>
           <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:15, color:C.grayMid, pointerEvents:"none" }}>🔍</span>
           <input type="text" placeholder="Поиск по фамилии..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ width:"100%", border:\`1.5px solid \${search?C.teal:C.grayBorder}\`, borderRadius:10, padding:"11px 14px 11px 42px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+            style={{ width:"100%", border:`1.5px solid ${search?C.teal:C.grayBorder}`, borderRadius:10, padding:"11px 14px 11px 42px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
           {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:20, color:C.grayMid, padding:0 }}>×</button>}
         </div>
         {loading && <div style={{ textAlign:"center", padding:"40px 0", color:C.grayMid }}><div style={{ fontSize:32, marginBottom:12 }}>⏳</div><p>Загружаем анкеты...</p></div>}
@@ -1036,7 +1027,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
             : sub.form_type === "documents" ? { label:"📋 Документы", bg:"#fee2e2", color:"#e84545" }
             : { label:"📋 М.И. Лынской", bg:C.tealLight, color:C.tealDark };
           return (
-            <div key={sub.id || idx} style={{ background:C.grayLight, borderRadius:12, padding:"16px 20px", marginBottom:12, border:\`1px solid \${C.grayBorder}\` }}>
+            <div key={sub.id || idx} style={{ background:C.grayLight, borderRadius:12, padding:"16px 20px", marginBottom:12, border:`1px solid ${C.grayBorder}` }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
                 <div style={{ flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2, flexWrap:"wrap" }}>
@@ -1112,7 +1103,7 @@ function DocsOnlyForm({ onSubmit }) {
   return (
     <div style={{ maxWidth:640, margin:"0 auto", padding:"40px 20px" }}>
       <div style={{ background:C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", overflow:"hidden" }}>
-        <div style={{ background:\`linear-gradient(135deg,\${C.dark},#1a3a2a)\`, padding:"28px 32px", display:"flex", alignItems:"center", gap:16 }}>
+        <div style={{ background:`linear-gradient(135deg,${C.dark},#1a3a2a)`, padding:"28px 32px", display:"flex", alignItems:"center", gap:16 }}>
           <Logo size={52}/>
           <div>
             <h1 style={{ color:C.yellow, fontSize:18, fontWeight:800, margin:"0 0 4px" }}>Отправка документов</h1>
@@ -1120,19 +1111,19 @@ function DocsOnlyForm({ onSubmit }) {
           </div>
         </div>
         <div style={{ padding:"28px 32px" }}>
-          <div style={{ background:"#fff8e1", borderLeft:\`4px solid \${C.yellow}\`, borderRadius:"0 10px 10px 0", padding:"14px 18px", marginBottom:24, fontSize:13, color:"#555", lineHeight:1.7 }}>
+          <div style={{ background:"#fff8e1", borderLeft:`4px solid ${C.yellow}`, borderRadius:"0 10px 10px 0", padding:"14px 18px", marginBottom:24, fontSize:13, color:"#555", lineHeight:1.7 }}>
             ⏰ <b>Важно:</b> все документы не позднее <b>3 суток</b> до диагностики.<br/>
             Если уже отправляли часть — введите ту же фамилию и мы покажем что уже есть.
           </div>
           <div style={{ marginBottom:16 }}>
             <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>Фамилия и имя ребёнка <span style={{color:"#e84545"}}>*</span></label>
             <input type="text" value={childName} onChange={e=>setChildName(e.target.value)} placeholder="Например: Иванов Артём"
-              style={{ width:"100%", border:\`1.5px solid \${childName?C.teal:C.grayBorder}\`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+              style={{ width:"100%", border:`1.5px solid ${childName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
           </div>
           <div style={{ marginBottom:28 }}>
             <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>ФИО родителя <span style={{color:"#e84545"}}>*</span></label>
             <input type="text" value={parentName} onChange={e=>setParentName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSearch()} placeholder="Например: Иванова Мария Петровна"
-              style={{ width:"100%", border:\`1.5px solid \${parentName?C.teal:C.grayBorder}\`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+              style={{ width:"100%", border:`1.5px solid ${parentName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
           </div>
           <button onClick={handleSearch} disabled={!childName.trim()||!parentName.trim()||searching}
             style={{ padding:"13px 32px", borderRadius:8, border:"none", cursor:"pointer", fontSize:15, fontWeight:700, background:C.teal, color:"#fff", opacity:childName.trim()&&parentName.trim()?1:0.4 }}>
@@ -1154,7 +1145,7 @@ async function apiCall(method, params = {}) {
     headers: { "Content-Type": "application/json" },
     body: method === "POST" ? JSON.stringify(params) : undefined,
   });
-  if (!res.ok) throw new Error(\`API \${res.status}\`);
+  if (!res.ok) throw new Error(`API ${res.status}`);
   return res.json();
 }
 
@@ -1262,7 +1253,7 @@ export default function App() {
                       <button onClick={()=>removeFile(item.id,fi)} style={{background:"none",border:"none",color:"#e84545",cursor:"pointer",fontSize:18,padding:0,flexShrink:0}}>×</button>
                     </div>
                   ))}
-                  <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",padding:"6px 14px",background:C.grayLight,borderRadius:8,border:\`1px dashed \${C.grayBorder}\`,fontSize:12,color:C.grayMid}}>
+                  <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",padding:"6px 14px",background:C.grayLight,borderRadius:8,border:`1px dashed ${C.grayBorder}`,fontSize:12,color:C.grayMid}}>
                     <span>📎</span> {(files[item.id]||[]).length>0?"Добавить ещё файл":"Прикрепить файл или фото"}
                     <input type="file" accept="image/*,.pdf,.doc,.docx" multiple style={{display:"none"}} onChange={e=>handleFile(item.id,e)}/>
                   </label>
@@ -1274,11 +1265,11 @@ export default function App() {
       ))}
       <div style={{background:C.white,borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",padding:"20px",marginBottom:20}}>
         <p style={{fontSize:14,fontWeight:600,color:C.dark,marginBottom:8}}>💬 Дополнительный комментарий</p>
-        <textarea rows={3} value={comment} onChange={e=>setComment(e.target.value)} placeholder="Например: анализ ЭЭГ сдаём на следующей неделе..." style={{width:"100%",border:\`1.5px solid \${C.grayBorder}\`,borderRadius:8,padding:"10px 14px",fontSize:14,color:C.dark,outline:"none",resize:"vertical",boxSizing:"border-box",background:"#fafcfc",fontFamily:"inherit"}}/>
+        <textarea rows={3} value={comment} onChange={e=>setComment(e.target.value)} placeholder="Например: анализ ЭЭГ сдаём на следующей неделе..." style={{width:"100%",border:`1.5px solid ${C.grayBorder}`,borderRadius:8,padding:"10px 14px",fontSize:14,color:C.dark,outline:"none",resize:"vertical",boxSizing:"border-box",background:"#fafcfc",fontFamily:"inherit"}}/>
       </div>
       <div style={{background:"linear-gradient(135deg,#1a3a2a,#1a2a1a)",borderRadius:14,padding:"24px 28px",textAlign:"center"}}>
         <Btn onClick={handleSubmit} variant="yellow" disabled={uploading} style={{fontSize:15,padding:"14px 36px"}}>
-          {uploading?"⏳ Отправляем...":\`✅ Отправить документы (\${totalChecked} отмечено, \${totalFiles} файлов)\`}
+          {uploading?"⏳ Отправляем...":`✅ Отправить документы (${totalChecked} отмечено, ${totalFiles} файлов)`}
         </Btn>
       </div>
     </div>
@@ -1296,7 +1287,7 @@ function AdminLogin({ onLogin }) {
       <div style={{ background:C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", padding:"48px 40px", textAlign:"center" }}>
         <Logo size={64}/>
         <h2 style={{ fontSize:22, color:C.dark, margin:"20px 0 24px" }}>Вход для администратора</h2>
-        <input type="password" style={{ width:"100%", border:\`1.5px solid \${C.grayBorder}\`, borderRadius:8, padding:"10px 14px", fontSize:14, textAlign:"center", outline:"none", marginBottom:12, boxSizing:"border-box", background:"#fafcfc", color:C.dark }}
+        <input type="password" style={{ width:"100%", border:`1.5px solid ${C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, textAlign:"center", outline:"none", marginBottom:12, boxSizing:"border-box", background:"#fafcfc", color:C.dark }}
           placeholder="Введите пароль" value={pw}
           onChange={e => { setPw(e.target.value); setErr(false); }}
           onKeyDown={e => e.key === "Enter" && check()} />
@@ -1343,7 +1334,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
         <input type="password" placeholder="Пароль для удаления" value={deletePw}
           onChange={e => { setDeletePw(e.target.value); setDeleteErr(false); }}
           onKeyDown={e => e.key === "Enter" && executeDelete()}
-          style={{ width:"100%", border:\`1.5px solid \${deleteErr?"#e05050":"#e2e8f0"}\`, borderRadius:8, padding:"10px 14px", fontSize:14, textAlign:"center", outline:"none", marginBottom:8, boxSizing:"border-box" }} autoFocus/>
+          style={{ width:"100%", border:`1.5px solid ${deleteErr?"#e05050":"#e2e8f0"}`, borderRadius:8, padding:"10px 14px", fontSize:14, textAlign:"center", outline:"none", marginBottom:8, boxSizing:"border-box" }} autoFocus/>
         {deleteErr && <p style={{ color:"#e05050", fontSize:13, margin:"0 0 12px" }}>Неверный пароль</p>}
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={() => setDeleteTarget(null)} style={{ flex:1, padding:"10px", borderRadius:8, border:"1.5px solid #e2e8f0", background:"#f4f6f8", cursor:"pointer", fontSize:14, fontWeight:600 }}>Отмена</button>
@@ -1376,7 +1367,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
               const fileData = (() => { try { return JSON.parse(sel.answers?.fileData || "[]"); } catch(e) { return []; } })();
               return DOCUMENTS.map(group => (
                 <div key={group.id} style={{ marginBottom:16 }}>
-                  <p style={{ fontSize:13, fontWeight:700, color:C.dark, marginBottom:8, borderBottom:\`2px solid \${group.required?"#fee2e2":C.tealLight}\`, paddingBottom:6 }}>
+                  <p style={{ fontSize:13, fontWeight:700, color:C.dark, marginBottom:8, borderBottom:`2px solid ${group.required?"#fee2e2":C.tealLight}`, paddingBottom:6 }}>
                     {group.category} {group.required && <span style={{fontSize:11,color:"#e84545"}}>(ОБЯЗАТЕЛЬНО)</span>}
                   </p>
                   {group.items.map(item => {
@@ -1399,12 +1390,12 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
         ) : (
           (sel.form_type === "family" ? FAMILY_SECTIONS : SECTIONS).map(sec => (
             <div key={sec.id} style={{ marginBottom:24 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12, paddingBottom:8, borderBottom:\`2px solid \${sec.color}33\` }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12, paddingBottom:8, borderBottom:`2px solid ${sec.color}33` }}>
                 <span style={{ fontSize:18 }}>{sec.icon}</span>
                 <span style={{ fontSize:15, fontWeight:700, color:C.dark }}>{sec.title}</span>
               </div>
               {sec.fields.map((f, i) => (
-                <div key={f.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:\`1px solid \${C.grayBorder}\` }}>
+                <div key={f.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.grayBorder}` }}>
                   <p style={{ fontSize:12, color:"#aaa", margin:"0 0 3px" }}>{i+1}. {f.label}</p>
                   <p style={{ fontSize:13, color:sel.answers?.[f.id]?C.dark:"#ccc", margin:0, background:C.grayLight, padding:"7px 10px", borderRadius:6, whiteSpace:"pre-wrap" }}>
                     {sel.answers?.[f.id] || "Нет ответа"}
@@ -1435,7 +1426,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
         <div style={{ position:"relative", marginBottom:16 }}>
           <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:15, color:C.grayMid, pointerEvents:"none" }}>🔍</span>
           <input type="text" placeholder="Поиск по фамилии..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ width:"100%", border:\`1.5px solid \${search?C.teal:C.grayBorder}\`, borderRadius:10, padding:"11px 14px 11px 42px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+            style={{ width:"100%", border:`1.5px solid ${search?C.teal:C.grayBorder}`, borderRadius:10, padding:"11px 14px 11px 42px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
           {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:20, color:C.grayMid, padding:0 }}>×</button>}
         </div>
         {loading && <div style={{ textAlign:"center", padding:"40px 0", color:C.grayMid }}><div style={{ fontSize:32, marginBottom:12 }}>⏳</div><p>Загружаем анкеты...</p></div>}
@@ -1449,7 +1440,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
             : sub.form_type === "documents" ? { label:"📋 Документы", bg:"#fee2e2", color:"#e84545" }
             : { label:"📋 М.И. Лынской", bg:C.tealLight, color:C.tealDark };
           return (
-            <div key={sub.id || idx} style={{ background:C.grayLight, borderRadius:12, padding:"16px 20px", marginBottom:12, border:\`1px solid \${C.grayBorder}\` }}>
+            <div key={sub.id || idx} style={{ background:C.grayLight, borderRadius:12, padding:"16px 20px", marginBottom:12, border:`1px solid ${C.grayBorder}` }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
                 <div style={{ flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2, flexWrap:"wrap" }}>
@@ -1525,7 +1516,7 @@ function DocsOnlyForm({ onSubmit }) {
   return (
     <div style={{ maxWidth:640, margin:"0 auto", padding:"40px 20px" }}>
       <div style={{ background:C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", overflow:"hidden" }}>
-        <div style={{ background:\`linear-gradient(135deg,\${C.dark},#1a3a2a)\`, padding:"28px 32px", display:"flex", alignItems:"center", gap:16 }}>
+        <div style={{ background:`linear-gradient(135deg,${C.dark},#1a3a2a)`, padding:"28px 32px", display:"flex", alignItems:"center", gap:16 }}>
           <Logo size={52}/>
           <div>
             <h1 style={{ color:C.yellow, fontSize:18, fontWeight:800, margin:"0 0 4px" }}>Отправка документов</h1>
@@ -1533,19 +1524,19 @@ function DocsOnlyForm({ onSubmit }) {
           </div>
         </div>
         <div style={{ padding:"28px 32px" }}>
-          <div style={{ background:"#fff8e1", borderLeft:\`4px solid \${C.yellow}\`, borderRadius:"0 10px 10px 0", padding:"14px 18px", marginBottom:24, fontSize:13, color:"#555", lineHeight:1.7 }}>
+          <div style={{ background:"#fff8e1", borderLeft:`4px solid ${C.yellow}`, borderRadius:"0 10px 10px 0", padding:"14px 18px", marginBottom:24, fontSize:13, color:"#555", lineHeight:1.7 }}>
             ⏰ <b>Важно:</b> все документы не позднее <b>3 суток</b> до диагностики.<br/>
             Если уже отправляли часть — введите ту же фамилию и мы покажем что уже есть.
           </div>
           <div style={{ marginBottom:16 }}>
             <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>Фамилия и имя ребёнка <span style={{color:"#e84545"}}>*</span></label>
             <input type="text" value={childName} onChange={e=>setChildName(e.target.value)} placeholder="Например: Иванов Артём"
-              style={{ width:"100%", border:\`1.5px solid \${childName?C.teal:C.grayBorder}\`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+              style={{ width:"100%", border:`1.5px solid ${childName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
           </div>
           <div style={{ marginBottom:28 }}>
             <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>ФИО родителя <span style={{color:"#e84545"}}>*</span></label>
             <input type="text" value={parentName} onChange={e=>setParentName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSearch()} placeholder="Например: Иванова Мария Петровна"
-              style={{ width:"100%", border:\`1.5px solid \${parentName?C.teal:C.grayBorder}\`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+              style={{ width:"100%", border:`1.5px solid ${parentName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
           </div>
           <button onClick={handleSearch} disabled={!childName.trim()||!parentName.trim()||searching}
             style={{ padding:"13px 32px", borderRadius:8, border:"none", cursor:"pointer", fontSize:15, fontWeight:700, background:C.teal, color:"#fff", opacity:childName.trim()&&parentName.trim()?1:0.4 }}>
@@ -1567,7 +1558,7 @@ async function apiCall(method, params = {}) {
     headers: { "Content-Type": "application/json" },
     body: method === "POST" ? JSON.stringify(params) : undefined,
   });
-  if (!res.ok) throw new Error(\`API \${res.status}\`);
+  if (!res.ok) throw new Error(`API ${res.status}`);
   return res.json();
 }
 
@@ -1667,6 +1658,3 @@ export default function App() {
     </ErrorBoundary>
   );
 }
-`;
-function copyCode(){navigator.clipboard.writeText(CODE).then(()=>{document.getElementById('status').textContent='✅ Скопировано!';}).catch(()=>{const ta=document.createElement('textarea');ta.value=CODE;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);document.getElementById('status').textContent='✅ Скопировано!';});}
-</script></body></html>
