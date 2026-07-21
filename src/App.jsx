@@ -822,7 +822,7 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked={}, prev
                   onClick={()=>{ if(files[item.id]) toggleCheck(item.id); }}
                   style={{display:"flex",alignItems:"flex-start",gap:12,cursor:files[item.id]?"pointer":"not-allowed",marginBottom:8,opacity:files[item.id]?1:0.7}}
                 >
-                  <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${checked[item.id]?C.teal:files[item.id]?"#aaa":"#ddd"}`,background:checked[item.id]?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
+                  <div style={{width:22,height:22,borderRadius:5,border:"2px solid "+(checked[item.id]?C.teal:files[item.id]?"#aaa":"#ddd"),background:checked[item.id]?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
                     {checked[item.id]&&<span style={{color:"#fff",fontSize:13,fontWeight:900}}>✓</span>}
                   </div>
                   <div>
