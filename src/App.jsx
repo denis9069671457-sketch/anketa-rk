@@ -840,10 +840,10 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked={}, prev
                     </div>
                   ):(
                     <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",padding:"6px 14px",background:C.grayLight,borderRadius:8,border:`1px dashed ${C.grayBorder}`,fontSize:12,color:C.grayMid}}>
-                      <span>📎</span> Прикрепить файл или фото
-                      <input type="file" accept="image/*,.pdf,.doc,.docx" style={{display:"none"}} onChange={e=>handleFile(item.id,e)}/>
+                      <span>📎</span> {(files[item.id]||[]).length>0?"Добавить ещё файл":"Прикрепить файл или фото"}
+                      <input type="file" accept="image/*,.pdf,.doc,.docx" multiple style={{display:"none"}} onChange={e=>handleFile(item.id,e)}/>
                     </label>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -1237,28 +1237,6 @@ function AppInner() {
     </div>
   );
 }
-
-export default function App() {
-  return (
-    <ErrorBoundary>
-      <AppInner />
-    </ErrorBoundary>
-  );
-}{/* Загрузка файлов */}
-                <div style={{marginLeft:34}}>
-                  {(files[item.id]||[]).map((f,fi)=>(
-                    <div key={fi} style={{display:"flex",alignItems:"center",gap:8,background:C.tealLight,borderRadius:8,padding:"7px 12px",marginBottom:6}}>
-                      <span style={{fontSize:16}}>📎</span>
-                      <span style={{fontSize:12,color:C.tealDark,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
-                      <button onClick={()=>removeFile(item.id,fi)} style={{background:"none",border:"none",color:"#e84545",cursor:"pointer",fontSize:18,padding:0,flexShrink:0}}>×</button>
-                    </div>
-                  ))}
-                  <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",padding:"6px 14px",background:C.grayLight,borderRadius:8,border:`1px dashed ${C.grayBorder}`,fontSize:12,color:C.grayMid}}>
-                    <span>📎</span> {(files[item.id]||[]).length>0?"Добавить ещё файл":"Прикрепить файл или фото"}
-                    <input type="file" accept="image/*,.pdf,.doc,.docx" multiple style={{display:"none"}} onChange={e=>handleFile(item.id,e)}/>
-                  </label>
-                </div>
-              </div>
             ))}
           </div>
         </div>
