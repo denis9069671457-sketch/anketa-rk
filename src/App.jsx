@@ -545,7 +545,7 @@ function ConsentScreen({ onAccept }) {
   const [checked, setChecked] = useState(false);
   const [parentName, setParentName] = useState("");
   const [nameErr, setNameErr] = useState(false);
-  const handle = () => { if(!parentName.trim()){setNameErr(true);return;} if(!checked)return; onAccept(parentName.trim()); };
+  const handle = () => { if(!isFullName(parentName)){setNameErr(true);return;} if(!checked)return; onAccept(parentName.trim()); };
   return (
     <div style={{maxWidth:780,margin:"0 auto",padding:"40px 20px"}}>
       <div style={{background:C.white,borderRadius:20,boxShadow:"0 4px 24px rgba(42,181,181,0.12)",overflow:"hidden"}}>
@@ -574,7 +574,7 @@ function ConsentScreen({ onAccept }) {
             <input type="text" placeholder="Например: Иванова Мария Петровна" value={parentName}
               onChange={e=>{setParentName(e.target.value);setNameErr(false);}}
               style={{...inputStyle,borderColor:nameErr?"#e84545":parentName?C.teal:C.grayBorder}}/>
-            {nameErr&&<p style={{color:"#e84545",fontSize:12,margin:"4px 0 0"}}>Пожалуйста, укажите ФИО</p>}
+            {nameErr&&<p style={{color:"#e84545",fontSize:12,margin:"4px 0 0"}}>Пожалуйста, укажите фамилию и имя (например: Иванова Мария)</p>}
           </div>
           <div onClick={()=>setChecked(p=>!p)} style={{display:"flex",alignItems:"flex-start",gap:12,cursor:"pointer",marginBottom:24,padding:"14px 18px",background:checked?"#e8f8f8":C.grayLight,borderRadius:10,border:`2px solid ${checked?C.teal:C.grayBorder}`,transition:"all .2s"}}>
             <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${checked?C.teal:"#aaa"}`,background:checked?C.teal:"#fff",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -582,7 +582,7 @@ function ConsentScreen({ onAccept }) {
             </div>
             <p style={{margin:0,fontSize:13,color:"#333",lineHeight:1.6}}>Я ознакомился(-ась) с условиями и даю согласие на обработку персональных данных своих и своего ребёнка в соответствии с Федеральным законом № 152-ФЗ.</p>
           </div>
-          <Btn onClick={handle} variant="primary" disabled={!checked||!parentName.trim()} style={{fontSize:15,padding:"13px 36px",opacity:(checked&&parentName.trim())?1:0.4}}>
+          <Btn onClick={handle} variant="primary" disabled={!checked||!isFullName(parentName)} style={{fontSize:15,padding:"13px 36px",opacity:(checked&&isFullName(parentName))?1:0.4}}>
             Согласен(на) — перейти к анкете →
           </Btn>
         </div>
@@ -914,11 +914,14 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked = {}, pr
 }
 
 
-async function loadPreviousDocs(childName) {
+async function loadPreviousDocs(childName, parentName) {
   try {
     const result = await apiCall("GET", { child_name: childName.trim() });
     if (!result.data) return null;
     const row = result.data;
+    const storedParent = (row.parent_name || "").toLowerCase();
+    const parentWords = (parentName || "").toLowerCase().trim().split(/\s+/).filter(Boolean);
+    if (parentWords.length && !parentWords.every(w => storedParent.includes(w))) return null;
     return {
       id: row.id, date: row.date,
       answers: typeof row.answers === "string" ? JSON.parse(row.answers) : (row.answers || {}),
@@ -936,13 +939,16 @@ function DocsOnlyForm({ onSubmit }) {
   const [prevChecked, setPrevChecked] = useState({});
   const [done, setDone] = useState(false);
   const [nameErr, setNameErr] = useState(false);
+  const [parentErr, setParentErr] = useState(false);
 
   const handleSearch = async () => {
     if (!childName.trim() || !parentName.trim()) return;
     if (!isFullName(childName)) { setNameErr(true); return; }
+    if (!isFullName(parentName)) { setParentErr(true); return; }
     setNameErr(false);
+    setParentErr(false);
     setSearching(true);
-    const prev = await loadPreviousDocs(childName);
+    const prev = await loadPreviousDocs(childName, parentName);
     if (prev) {
       try { setPrevChecked(JSON.parse(prev.answers?.checkedDocs || "{}")); setPrevDocs(prev); } catch(e) {}
     }
@@ -988,8 +994,9 @@ function DocsOnlyForm({ onSubmit }) {
           </div>
           <div style={{ marginBottom:28 }}>
             <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>ФИО родителя <span style={{color:"#e84545"}}>*</span></label>
-            <input type="text" value={parentName} onChange={e=>setParentName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSearch()} placeholder="Например: Иванова Мария Петровна"
-              style={{ width:"100%", border:`1.5px solid ${parentName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+            <input type="text" value={parentName} onChange={e=>{setParentName(e.target.value);setParentErr(false);}} onKeyDown={e=>e.key==="Enter"&&handleSearch()} placeholder="Например: Иванова Мария Петровна"
+              style={{ width:"100%", border:`1.5px solid ${parentErr?"#e84545":parentName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+            {parentErr && <p style={{color:"#e84545",fontSize:12,margin:"4px 0 0"}}>Укажите фамилию и имя родителя (например: Иванова Мария)</p>}
           </div>
           <button onClick={handleSearch} disabled={!childName.trim()||!parentName.trim()||searching}
             style={{ padding:"13px 32px", borderRadius:8, border:"none", cursor:"pointer", fontSize:15, fontWeight:700, background:C.teal, color:"#fff", opacity:childName.trim()&&parentName.trim()?1:0.4 }}>
@@ -1129,6 +1136,7 @@ function AppInner() {
 function EditForm({ onUpdate }) {
   const [step, setStep] = React.useState("search");
   const [childName, setChildName] = React.useState("");
+  const [parentName, setParentName] = React.useState("");
   const [searching, setSearching] = React.useState(false);
   const [results, setResults] = React.useState([]);
   const [selected, setSelected] = React.useState(null);
@@ -1146,20 +1154,23 @@ function EditForm({ onUpdate }) {
   };
 
   const handleSearch = async () => {
-    if (!childName.trim()) return;
+    if (!childName.trim() || !parentName.trim()) return;
     if (!isFullName(childName)) { setError("Укажите и фамилию, и имя ребёнка (например: Иванов Артём)"); return; }
+    if (!isFullName(parentName)) { setError("Укажите фамилию и имя родителя (например: Иванова Мария)"); return; }
     setSearching(true);
     setError("");
     try {
       const res = await apiCall("GET");
       const all = res.data || [];
-      const words = childName.toLowerCase().trim().split(/\s+/).filter(Boolean);
+      const childWords = childName.toLowerCase().trim().split(/\s+/).filter(Boolean);
+      const parentWords = parentName.toLowerCase().trim().split(/\s+/).filter(Boolean);
       const found = all.filter(r => {
         const n = (r.answers?.s0_1 || r.answers?.f0_1 || "").toLowerCase();
-        return words.every(w => n.includes(w));
+        const p = (r.parent_name || "").toLowerCase();
+        return childWords.every(w => n.includes(w)) && parentWords.every(w => p.includes(w));
       }).filter(r => r.form_type !== "documents");
       setResults(found);
-      if (found.length === 0) setError("Анкеты не найдены. Проверьте фамилию и имя.");
+      if (found.length === 0) setError("Анкеты не найдены. Проверьте фамилию и имя ребёнка и родителя.");
     } catch(e) {
       setError("Ошибка поиска. Попробуйте ещё раз.");
     }
@@ -1195,7 +1206,7 @@ function EditForm({ onUpdate }) {
           <Logo size={52}/>
           <div>
             <h1 style={{ color:C.yellow, fontSize:18, fontWeight:800, margin:"0 0 4px" }}>Редактировать анкету</h1>
-            <p style={{ color:C.teal, fontSize:12, margin:0 }}>Найдите анкету по фамилии ребёнка</p>
+            <p style={{ color:C.teal, fontSize:12, margin:0 }}>Найдите анкету по ФИО ребёнка и родителя</p>
           </div>
         </div>
         <div style={{ padding:"28px 32px" }}>
@@ -1211,9 +1222,18 @@ function EditForm({ onUpdate }) {
               style={{ width:"100%", border:"1.5px solid " + (childName ? C.teal : C.grayBorder), borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}
             />
           </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>ФИО родителя (законного представителя)</label>
+            <input type="text" value={parentName}
+              onChange={e => { setParentName(e.target.value); setError(""); }}
+              onKeyDown={e => e.key === "Enter" && handleSearch()}
+              placeholder="То же ФИО, что указывали при заполнении анкеты"
+              style={{ width:"100%", border:"1.5px solid " + (parentName ? C.teal : C.grayBorder), borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}
+            />
+          </div>
           {error && <p style={{ color:"#e84545", fontSize:13, marginBottom:12 }}>{error}</p>}
-          <button onClick={handleSearch} disabled={!childName.trim() || searching}
-            style={{ padding:"12px 28px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background:C.teal, color:"#fff", opacity:childName.trim()?1:0.4 }}>
+          <button onClick={handleSearch} disabled={!childName.trim() || !parentName.trim() || searching}
+            style={{ padding:"12px 28px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background:C.teal, color:"#fff", opacity:(childName.trim()&&parentName.trim())?1:0.4 }}>
             {searching ? "⏳ Ищем..." : "🔍 Найти анкету"}
           </button>
 
