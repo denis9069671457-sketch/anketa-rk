@@ -18,7 +18,8 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-
+// ─── Валидация ФИО ────────────────────────────────────────────────────────────
+const isFullName = (str) => (str || "").trim().split(/\s+/).filter(Boolean).length >= 2;
 
 // ─── ПАЛИТРА ─────────────────────────────────────────────────────────────────
 const C = {
@@ -598,6 +599,7 @@ function ClientForm({ onSubmit }) {
   const [parentName, setParentName] = useState("");
   const [familyCurSec, setFamilyCurSec] = useState(0);
   const [familyAnswers, setFamilyAnswers] = useState({});
+  const [childNameErr, setChildNameErr] = useState(false);
   const topRef = useRef(null);
   const filled = ALL_FIELDS.filter(f=>answers[f.id]).length;
   const pct = Math.round(filled/TOTAL*100);
@@ -665,12 +667,13 @@ function ClientForm({ onSubmit }) {
           </div>
         </div>
         <SectionBlock section={fSec} answers={familyAnswers} onChange={(id,val)=>setFamilyAnswers(p=>({...p,[id]:val}))}/>
+        {familyCurSec===0 && childNameErr && <p style={{color:"#e84545",fontSize:13,fontWeight:600,margin:"-14px 0 16px"}}>⚠️ Укажите и фамилию, и имя ребёнка (например: Иванов Артём)</p>}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
           <Btn onClick={()=>goFSec(familyCurSec-1)} variant="ghost" disabled={familyCurSec===0}>← Назад</Btn>
           <span style={{fontSize:13,color:C.grayMid}}>Раздел {familyCurSec+1} из {FSECS.length}</span>
           {familyCurSec<FSECS.length-1
-            ?<Btn onClick={()=>goFSec(familyCurSec+1)} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
-            :<Btn onClick={async()=>{const sub={id:Date.now(),date:new Date().toISOString(),answers:{...familyAnswers},parentName,formType:"family"};await onSubmit(sub);setStep("familyDone");}} variant="yellow">✅ Отправить обе анкеты</Btn>
+            ?<Btn onClick={()=>{ if(familyCurSec===0 && !isFullName(familyAnswers["f0_1"])){setChildNameErr(true);return;} setChildNameErr(false); goFSec(familyCurSec+1); }} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
+            :<Btn onClick={async()=>{ if(!isFullName(familyAnswers["f0_1"])){setChildNameErr(true);goFSec(0);return;} const sub={id:Date.now(),date:new Date().toISOString(),answers:{...familyAnswers},parentName,formType:"family"};await onSubmit(sub);setStep("familyDone"); }} variant="yellow">✅ Отправить обе анкеты</Btn>
           }
         </div>
       </div>
@@ -691,12 +694,13 @@ function ClientForm({ onSubmit }) {
         </div>
       </div>
       <SectionBlock section={sec} answers={answers} onChange={handleChange}/>
+      {curSec===0 && childNameErr && <p style={{color:"#e84545",fontSize:13,fontWeight:600,margin:"-14px 0 16px"}}>⚠️ Укажите и фамилию, и имя ребёнка (например: Иванов Артём)</p>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
         <Btn onClick={()=>goSec(curSec-1)} variant="ghost" disabled={curSec===0}>← Назад</Btn>
         <span style={{fontSize:13,color:C.grayMid}}>Раздел {curSec+1} из {SECTIONS.length}</span>
         {curSec<SECTIONS.length-1
-          ?<Btn onClick={()=>goSec(curSec+1)} variant="primary">Далее →</Btn>
-          :<Btn onClick={()=>{onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"anamnez"});setStep("done");}} variant="yellow">✅ Отправить анкету</Btn>
+          ?<Btn onClick={()=>{ if(curSec===0 && !isFullName(answers["s0_1"])){setChildNameErr(true);return;} setChildNameErr(false); goSec(curSec+1); }} variant="primary">Далее →</Btn>
+          :<Btn onClick={()=>{ if(!isFullName(answers["s0_1"])){setChildNameErr(true);goSec(0);return;} onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"anamnez"});setStep("done"); }} variant="yellow">✅ Отправить анкету</Btn>
         }
       </div>
     </div>
@@ -709,6 +713,7 @@ function FamilyForm({ onSubmit }) {
   const [curSec, setCurSec] = useState(0);
   const [answers, setAnswers] = useState({});
   const [parentName, setParentName] = useState("");
+  const [childNameErr, setChildNameErr] = useState(false);
   const topRef = useRef(null);
   const filled = ALL_FAMILY_FIELDS.filter(f=>answers[f.id]).length;
   const pct = Math.round(filled/FAMILY_TOTAL*100);
@@ -739,12 +744,13 @@ function FamilyForm({ onSubmit }) {
         </div>
       </div>
       <SectionBlock section={sec} answers={answers} onChange={handleChange}/>
+      {curSec===0 && childNameErr && <p style={{color:"#e84545",fontSize:13,fontWeight:600,margin:"-14px 0 16px"}}>⚠️ Укажите и фамилию, и имя ребёнка (например: Иванов Артём)</p>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
         <Btn onClick={()=>goSec(curSec-1)} variant="ghost" disabled={curSec===0}>← Назад</Btn>
         <span style={{fontSize:13,color:C.grayMid}}>Раздел {curSec+1} из {FAMILY_SECTIONS.length}</span>
         {curSec<FAMILY_SECTIONS.length-1
-          ?<Btn onClick={()=>goSec(curSec+1)} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
-          :<Btn onClick={()=>{onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"family"});setStep("done");}} variant="yellow">✅ Отправить анкету</Btn>
+          ?<Btn onClick={()=>{ if(curSec===0 && !isFullName(answers["f0_1"])){setChildNameErr(true);return;} setChildNameErr(false); goSec(curSec+1); }} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
+          :<Btn onClick={()=>{ if(!isFullName(answers["f0_1"])){setChildNameErr(true);goSec(0);return;} onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"family"});setStep("done"); }} variant="yellow">✅ Отправить анкету</Btn>
         }
       </div>
     </div>
@@ -929,9 +935,12 @@ function DocsOnlyForm({ onSubmit }) {
   const [prevDocs, setPrevDocs] = useState(null);
   const [prevChecked, setPrevChecked] = useState({});
   const [done, setDone] = useState(false);
+  const [nameErr, setNameErr] = useState(false);
 
   const handleSearch = async () => {
     if (!childName.trim() || !parentName.trim()) return;
+    if (!isFullName(childName)) { setNameErr(true); return; }
+    setNameErr(false);
     setSearching(true);
     const prev = await loadPreviousDocs(childName);
     if (prev) {
@@ -973,8 +982,9 @@ function DocsOnlyForm({ onSubmit }) {
           </div>
           <div style={{ marginBottom:16 }}>
             <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>Фамилия и имя ребёнка <span style={{color:"#e84545"}}>*</span></label>
-            <input type="text" value={childName} onChange={e=>setChildName(e.target.value)} placeholder="Например: Иванов Артём"
-              style={{ width:"100%", border:`1.5px solid ${childName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+            <input type="text" value={childName} onChange={e=>{setChildName(e.target.value);setNameErr(false);}} placeholder="Например: Иванов Артём"
+              style={{ width:"100%", border:`1.5px solid ${nameErr?"#e84545":childName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+            {nameErr && <p style={{color:"#e84545",fontSize:12,margin:"4px 0 0"}}>Укажите и фамилию, и имя ребёнка (например: Иванов Артём)</p>}
           </div>
           <div style={{ marginBottom:28 }}>
             <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>ФИО родителя <span style={{color:"#e84545"}}>*</span></label>
@@ -1137,18 +1147,19 @@ function EditForm({ onUpdate }) {
 
   const handleSearch = async () => {
     if (!childName.trim()) return;
+    if (!isFullName(childName)) { setError("Укажите и фамилию, и имя ребёнка (например: Иванов Артём)"); return; }
     setSearching(true);
     setError("");
     try {
       const res = await apiCall("GET");
       const all = res.data || [];
-      const name = childName.toLowerCase().trim();
+      const words = childName.toLowerCase().trim().split(/\s+/).filter(Boolean);
       const found = all.filter(r => {
         const n = (r.answers?.s0_1 || r.answers?.f0_1 || "").toLowerCase();
-        return n.includes(name.split(" ")[0]) || name.includes(n.split(" ")[0]);
+        return words.every(w => n.includes(w));
       }).filter(r => r.form_type !== "documents");
       setResults(found);
-      if (found.length === 0) setError("Анкеты не найдены. Проверьте фамилию.");
+      if (found.length === 0) setError("Анкеты не найдены. Проверьте фамилию и имя.");
     } catch(e) {
       setError("Ошибка поиска. Попробуйте ещё раз.");
     }
