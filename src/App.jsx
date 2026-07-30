@@ -454,6 +454,7 @@ function Header({ view, setView, auth, onLogout }) {
     { key:"client", label:"📋 Анкета М.И. Лынской" },
     { key:"family", label:"🧬 Семейный фон" },
     { key:"docs",   label:"📎 Документы" },
+    { key:"edit",   label:"✏️ Редактировать" },
     { key:"admin",  label: auth ? "👤 Администратор" : "🔐 Администратор" },
   ];
   const handleNav = (key) => { if (key==="admin") { auth?setView("admin"):setView("adminLogin"); } else { setView(key); } };
@@ -906,6 +907,403 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked = {}, pr
   );
 }
 
+
+async function loadPreviousDocs(childName) {
+  try {
+    const result = await apiCall("GET", { child_name: childName.trim() });
+    if (!result.data) return null;
+    const row = result.data;
+    return {
+      id: row.id, date: row.date,
+      answers: typeof row.answers === "string" ? JSON.parse(row.answers) : (row.answers || {}),
+      parent_name: row.parent_name || "",
+    };
+  } catch(e) { return null; }
+}
+
+function DocsOnlyForm({ onSubmit }) {
+  const [step, setStep] = useState("info");
+  const [childName, setChildName] = useState("");
+  const [parentName, setParentName] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [prevDocs, setPrevDocs] = useState(null);
+  const [prevChecked, setPrevChecked] = useState({});
+  const [done, setDone] = useState(false);
+
+  const handleSearch = async () => {
+    if (!childName.trim() || !parentName.trim()) return;
+    setSearching(true);
+    const prev = await loadPreviousDocs(childName);
+    if (prev) {
+      try { setPrevChecked(JSON.parse(prev.answers?.checkedDocs || "{}")); setPrevDocs(prev); } catch(e) {}
+    }
+    setSearching(false);
+    setStep("docs");
+  };
+
+  if (done) return (
+    <div style={{ maxWidth:600, margin:"60px auto", padding:"0 20px", textAlign:"center" }}>
+      <div style={{ background:C.white, borderRadius:20, padding:"60px 40px", boxShadow:"0 4px 24px rgba(42,181,181,0.12)" }}>
+        <Logo size={80}/><div style={{ fontSize:56, marginBottom:16, marginTop:16 }}>📎</div>
+        <h2 style={{ color:C.dark, fontSize:24, marginBottom:10 }}>Документы отправлены!</h2>
+        <p style={{ color:C.grayMid, fontSize:15 }}>Спасибо! Администратор получил ваши документы.</p>
+      </div>
+    </div>
+  );
+
+  if (step === "docs") return (
+    <DocumentsScreen parentName={parentName} childName={childName} prevChecked={prevChecked} prevDocs={prevDocs}
+      onSubmit={async (docData) => { await onSubmit({ ...docData, answers: { ...docData.answers, s0_1: childName } }); setDone(true); }}/>
+  );
+
+  return (
+    <div style={{ maxWidth:640, margin:"0 auto", padding:"40px 20px" }}>
+      <div style={{ background:C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", overflow:"hidden" }}>
+        <div style={{ background:`linear-gradient(135deg,${C.dark},#1a3a2a)`, padding:"28px 32px", display:"flex", alignItems:"center", gap:16 }}>
+          <Logo size={52}/>
+          <div>
+            <h1 style={{ color:C.yellow, fontSize:18, fontWeight:800, margin:"0 0 4px" }}>Отправка документов</h1>
+            <p style={{ color:C.teal, fontSize:12, margin:0 }}>Перед диагностическим консилиумом</p>
+          </div>
+        </div>
+        <div style={{ padding:"28px 32px" }}>
+          <div style={{ background:"#fff8e1", borderLeft:`4px solid ${C.yellow}`, borderRadius:"0 10px 10px 0", padding:"14px 18px", marginBottom:24, fontSize:13, color:"#555", lineHeight:1.7 }}>
+            ⏰ <b>Важно:</b> все документы не позднее <b>3 суток</b> до диагностики.<br/>
+            Если уже отправляли часть — введите ту же фамилию и мы покажем что уже есть.
+          </div>
+          <div style={{ marginBottom:16 }}>
+            <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>Фамилия и имя ребёнка <span style={{color:"#e84545"}}>*</span></label>
+            <input type="text" value={childName} onChange={e=>setChildName(e.target.value)} placeholder="Например: Иванов Артём"
+              style={{ width:"100%", border:`1.5px solid ${childName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+          </div>
+          <div style={{ marginBottom:28 }}>
+            <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>ФИО родителя <span style={{color:"#e84545"}}>*</span></label>
+            <input type="text" value={parentName} onChange={e=>setParentName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSearch()} placeholder="Например: Иванова Мария Петровна"
+              style={{ width:"100%", border:`1.5px solid ${parentName?C.teal:C.grayBorder}`, borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}/>
+          </div>
+          <button onClick={handleSearch} disabled={!childName.trim()||!parentName.trim()||searching}
+            style={{ padding:"13px 32px", borderRadius:8, border:"none", cursor:"pointer", fontSize:15, fontWeight:700, background:C.teal, color:"#fff", opacity:childName.trim()&&parentName.trim()?1:0.4 }}>
+            {searching ? "⏳ Проверяем..." : "Перейти к документам →"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function apiCall(method, params = {}) {
+  const url = new URL("/api/save", window.location.origin);
+  if (method === "GET" || method === "DELETE") {
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  }
+  const res = await fetch(url.toString(), {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: method === "POST" ? JSON.stringify(params) : undefined,
+  });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+
+async function sendToSheets(submission) {
+  try {
+    let answers = submission.answers || {};
+    if (submission.formType === "documents") {
+      answers = {
+        checkedDocs: JSON.stringify(submission.checkedDocs || {}),
+        comment: submission.comment || "",
+        fileNames: JSON.stringify((submission.uploadedFiles || []).map(f => ({ docId: f.docId, fileName: f.fileName, fileType: f.fileType }))),
+        fileData: JSON.stringify((submission.uploadedFiles || []).map(f => ({ docId: f.docId, data: f.fileData }))),
+        s0_1: submission.answers?.s0_1 || "",
+      };
+    }
+    await apiCall("POST", {
+      date: submission.date,
+      answers,
+      parent_name: submission.parentName || "",
+      form_type: submission.formType || "anamnez",
+    });
+    return true;
+  } catch(e) {
+    console.error("Save error:", e);
+    return false;
+  }
+}
+
+async function updateSubmission(id, answers, formType) {
+  try {
+    const res = await apiCall("PATCH", { id, answers, form_type: formType });
+    return res.ok !== false;
+  } catch(e) {
+    console.error("Update error:", e);
+    return false;
+  }
+}
+
+async function loadFromSheets() {
+  try {
+    const result = await apiCall("GET");
+    return (result.data || []).map(row => ({
+      id: row.id,
+      date: row.date,
+      answers: typeof row.answers === "string" ? JSON.parse(row.answers) : (row.answers || {}),
+      parent_name: row.parent_name || "",
+      form_type: row.form_type || "anamnez",
+    }));
+  } catch(e) {
+    console.error("Load error:", e);
+    return [];
+  }
+}
+
+// ─── App root ─────────────────────────────────────────────────────────────────
+function AppInner() {
+  const [view, setView] = React.useState("client");
+  const [auth, setAuth] = React.useState(false);
+  const [submissions, setSubmissions] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [saveStatus, setSaveStatus] = React.useState(null);
+
+  const loadSubmissions = async () => {
+    setLoading(true);
+    try {
+      const subs = await loadFromSheets();
+      setSubmissions(Array.isArray(subs) ? subs : []);
+    } catch(e) { setSubmissions([]); }
+    setLoading(false);
+  };
+
+  const handleSubmit = async (sub) => {
+    setSaveStatus("saving");
+    try {
+      const ok = await sendToSheets(sub);
+      setSaveStatus(ok ? "ok" : "error");
+    } catch(e) { setSaveStatus("error"); }
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleUpdate = async (id, answers, formType) => {
+    setSaveStatus("saving");
+    try {
+      const ok = await updateSubmission(id, answers, formType);
+      setSaveStatus(ok ? "ok" : "error");
+    } catch(e) { setSaveStatus("error"); }
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleDelete = async (sub) => {
+    try {
+      await apiCall("DELETE", { id: sub.id });
+      setSubmissions(prev => prev.filter(s => s.id !== sub.id));
+    } catch(e) { console.error("Delete error:", e); }
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.grayLight, fontFamily:"'Segoe UI',Arial,sans-serif" }}>
+      <Header view={view} setView={setView} auth={auth} onLogout={() => { setAuth(false); setView("client"); }}/>
+      {saveStatus === "saving" && <div style={{ background:"#f5c842", color:"#1a2a2a", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>⏳ Сохраняем анкету...</div>}
+      {saveStatus === "ok" && <div style={{ background:"#27ae60", color:"#fff", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>✅ Анкета успешно сохранена!</div>}
+      {saveStatus === "error" && <div style={{ background:"#e84545", color:"#fff", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>⚠️ Ошибка сохранения. Проверьте интернет.</div>}
+      {view === "client" && <ClientForm onSubmit={handleSubmit}/>}
+      {view === "family" && <FamilyForm onSubmit={handleSubmit}/>}
+      {view === "docs" && <DocsOnlyForm onSubmit={handleSubmit}/>}
+      {view === "edit" && <EditForm onUpdate={handleUpdate}/>}
+      {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }}/>}
+      {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} onDelete={handleDelete}/>}
+    </div>
+  );
+}
+
+
+// ─── Edit Form ────────────────────────────────────────────────────────────────
+function EditForm({ onUpdate }) {
+  const [step, setStep] = React.useState("search");
+  const [childName, setChildName] = React.useState("");
+  const [searching, setSearching] = React.useState(false);
+  const [results, setResults] = React.useState([]);
+  const [selected, setSelected] = React.useState(null);
+  const [answers, setAnswers] = React.useState({});
+  const [curSec, setCurSec] = React.useState(0);
+  const [saved, setSaved] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const topRef = React.useRef(null);
+
+  const HOURS_LIMIT = 48;
+
+  const canEdit = (sub) => {
+    const diff = (Date.now() - new Date(sub.date).getTime()) / 3600000;
+    return diff < HOURS_LIMIT;
+  };
+
+  const handleSearch = async () => {
+    if (!childName.trim()) return;
+    setSearching(true);
+    setError("");
+    try {
+      const res = await apiCall("GET");
+      const all = res.data || [];
+      const name = childName.toLowerCase().trim();
+      const found = all.filter(r => {
+        const n = (r.answers?.s0_1 || r.answers?.f0_1 || "").toLowerCase();
+        return n.includes(name.split(" ")[0]) || name.includes(n.split(" ")[0]);
+      }).filter(r => r.form_type !== "documents");
+      setResults(found);
+      if (found.length === 0) setError("Анкеты не найдены. Проверьте фамилию.");
+    } catch(e) {
+      setError("Ошибка поиска. Попробуйте ещё раз.");
+    }
+    setSearching(false);
+  };
+
+  const handleSelect = (sub) => {
+    if (!canEdit(sub)) {
+      setError("Срок редактирования истёк (48 часов). Обратитесь к администратору.");
+      return;
+    }
+    setSelected(sub);
+    setAnswers(typeof sub.answers === "string" ? JSON.parse(sub.answers) : (sub.answers || {}));
+    setCurSec(0);
+    setSaved(false);
+    setStep("edit");
+  };
+
+  const handleSave = async () => {
+    const ok = await onUpdate(selected.id, answers, selected.form_type);
+    if (ok !== false) setSaved(true);
+  };
+
+  const goSec = (n) => {
+    setCurSec(n);
+    setTimeout(() => topRef.current?.scrollIntoView({ behavior:"smooth" }), 50);
+  };
+
+  if (step === "search") return (
+    <div style={{ maxWidth:640, margin:"0 auto", padding:"40px 20px" }}>
+      <div style={{ background:C.white, borderRadius:20, boxShadow:"0 4px 24px rgba(42,181,181,0.12)", overflow:"hidden" }}>
+        <div style={{ background:"linear-gradient(135deg," + C.dark + ",#1a3a3a)", padding:"28px 32px", display:"flex", alignItems:"center", gap:16 }}>
+          <Logo size={52}/>
+          <div>
+            <h1 style={{ color:C.yellow, fontSize:18, fontWeight:800, margin:"0 0 4px" }}>Редактировать анкету</h1>
+            <p style={{ color:C.teal, fontSize:12, margin:0 }}>Найдите анкету по фамилии ребёнка</p>
+          </div>
+        </div>
+        <div style={{ padding:"28px 32px" }}>
+          <div style={{ background:"#fff8e1", borderLeft:"4px solid #f5c842", borderRadius:"0 10px 10px 0", padding:"14px 18px", marginBottom:24, fontSize:13, color:"#555", lineHeight:1.7 }}>
+            ⏰ <b>Важно:</b> редактирование доступно только в течение <b>48 часов</b> после первоначальной отправки.
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ display:"block", fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>Фамилия и имя ребёнка</label>
+            <input type="text" value={childName}
+              onChange={e => { setChildName(e.target.value); setError(""); }}
+              onKeyDown={e => e.key === "Enter" && handleSearch()}
+              placeholder="Например: Иванов Артём"
+              style={{ width:"100%", border:"1.5px solid " + (childName ? C.teal : C.grayBorder), borderRadius:8, padding:"10px 14px", fontSize:14, color:C.dark, outline:"none", boxSizing:"border-box", background:"#fafcfc", fontFamily:"inherit" }}
+            />
+          </div>
+          {error && <p style={{ color:"#e84545", fontSize:13, marginBottom:12 }}>{error}</p>}
+          <button onClick={handleSearch} disabled={!childName.trim() || searching}
+            style={{ padding:"12px 28px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background:C.teal, color:"#fff", opacity:childName.trim()?1:0.4 }}>
+            {searching ? "⏳ Ищем..." : "🔍 Найти анкету"}
+          </button>
+
+          {results.length > 0 && (
+            <div style={{ marginTop:24 }}>
+              <p style={{ fontSize:13, fontWeight:600, color:C.dark, marginBottom:12 }}>Найдено анкет: {results.length}</p>
+              {results.map((sub, i) => {
+                const name = sub.answers?.s0_1 || sub.answers?.f0_1 || "Без имени";
+                const typeLabel = sub.form_type === "family" ? "🧬 Семейный фон" : "📋 М.И. Лынской";
+                const date = new Date(sub.date).toLocaleString("ru-RU");
+                const editable = canEdit(sub);
+                return (
+                  <div key={i} style={{ background:C.grayLight, borderRadius:12, padding:"14px 18px", marginBottom:10, border:"1px solid " + C.grayBorder }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
+                      <div>
+                        <p style={{ margin:"0 0 2px", fontWeight:700, fontSize:14, color:C.dark }}>{name}</p>
+                        <p style={{ margin:"0 0 2px", fontSize:12, color:C.grayMid }}>{typeLabel} · {date}</p>
+                        {!editable && <p style={{ margin:0, fontSize:11, color:"#e84545" }}>⏰ Срок редактирования истёк</p>}
+                      </div>
+                      <button onClick={() => handleSelect(sub)} disabled={!editable}
+                        style={{ padding:"8px 18px", borderRadius:8, border:"none", cursor:editable?"pointer":"not-allowed", fontSize:13, fontWeight:700, background:editable?C.teal:"#ccc", color:"#fff", opacity:editable?1:0.5 }}>
+                        ✏️ Редактировать
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (step === "edit") {
+    const isFamily = selected.form_type === "family";
+    const sections = isFamily ? FAMILY_SECTIONS : SECTIONS;
+    const allFields = sections.flatMap(s => s.fields);
+    const filled = allFields.filter(f => answers[f.id]).length;
+    const pct = Math.round(filled / allFields.length * 100);
+    const sec = sections[curSec];
+
+    return (
+      <div style={{ maxWidth:820, margin:"0 auto", padding:"28px 20px" }}>
+        <div ref={topRef}/>
+        <div style={{ background:"linear-gradient(135deg," + C.dark + ",#1a3a3a)", borderRadius:14, padding:"16px 24px", marginBottom:20, display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+          <span style={{ fontSize:24 }}>✏️</span>
+          <div style={{ flex:1 }}>
+            <p style={{ color:C.yellow, fontWeight:700, fontSize:15, margin:0 }}>Редактирование: {selected.answers?.s0_1 || selected.answers?.f0_1 || "Без имени"}</p>
+            <p style={{ color:"rgba(255,255,255,0.6)", fontSize:12, margin:0 }}>{isFamily ? "Семейный фон" : "Анкета М.И. Лынской"} · {pct}% заполнено</p>
+          </div>
+          <button onClick={() => { setStep("search"); setResults([]); setSaved(false); }}
+            style={{ padding:"7px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, background:"rgba(255,255,255,0.15)", color:"#fff" }}>
+            ← Назад
+          </button>
+        </div>
+
+        {saved && (
+          <div style={{ background:"#27ae60", color:"#fff", borderRadius:10, padding:"12px 18px", marginBottom:16, fontSize:14, fontWeight:700, textAlign:"center" }}>
+            ✅ Анкета успешно обновлена!
+          </div>
+        )}
+
+        <div style={{ background:C.white, borderRadius:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:"16px 20px", marginBottom:20 }}>
+          <ProgressBar pct={pct} color={"linear-gradient(90deg," + C.teal + "," + C.yellow + ")"} height={8}/>
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:12 }}>
+            {sections.map((s, i) => {
+              const sf = s.fields.filter(f => answers[f.id]).length;
+              const done = sf === s.fields.length;
+              const active = curSec === i;
+              return (
+                <button key={s.id} onClick={() => goSec(i)} style={{
+                  padding:"5px 12px", borderRadius:20, cursor:"pointer", fontSize:12, fontWeight:600,
+                  border:"2px solid " + (active ? s.color : done ? s.color + "66" : C.grayBorder),
+                  background: active ? s.color : done ? s.color + "15" : C.grayLight,
+                  color: active ? "#fff" : done ? s.color : C.grayMid,
+                }}>{s.icon} {sf}/{s.fields.length}</button>
+              );
+            })}
+          </div>
+        </div>
+
+        <SectionBlock section={sec} answers={answers} onChange={(id, val) => setAnswers(p => ({ ...p, [id]: val }))}/>
+
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:4, flexWrap:"wrap", gap:10 }}>
+          <button onClick={() => goSec(curSec - 1)} disabled={curSec === 0}
+            style={{ padding:"10px 24px", borderRadius:8, border:"none", cursor:curSec===0?"not-allowed":"pointer", fontSize:14, fontWeight:700, background:C.grayLight, color:C.gray, opacity:curSec===0?0.5:1 }}>← Назад</button>
+          <button onClick={handleSave}
+            style={{ padding:"10px 28px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background:"#27ae60", color:"#fff" }}>💾 Сохранить изменения</button>
+          {curSec < sections.length - 1
+            ? <button onClick={() => goSec(curSec + 1)} style={{ padding:"10px 24px", borderRadius:8, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, background:C.teal, color:"#fff" }}>Далее →</button>
+            : <span style={{ fontSize:13, color:C.grayMid }}>Последний раздел</span>
+          }
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 // ─── Admin login ──────────────────────────────────────────────────────────────
 function AdminLogin({ onLogin }) {
   const [pw, setPw] = useState(""); 
@@ -1216,6 +1614,16 @@ async function sendToSheets(submission) {
   }
 }
 
+async function updateSubmission(id, answers, formType) {
+  try {
+    const res = await apiCall("PATCH", { id, answers, form_type: formType });
+    return res.ok !== false;
+  } catch(e) {
+    console.error("Update error:", e);
+    return false;
+  }
+}
+
 async function loadFromSheets() {
   try {
     const result = await apiCall("GET");
@@ -1258,6 +1666,15 @@ function AppInner() {
     setTimeout(() => setSaveStatus(null), 3000);
   };
 
+  const handleUpdate = async (id, answers, formType) => {
+    setSaveStatus("saving");
+    try {
+      const ok = await updateSubmission(id, answers, formType);
+      setSaveStatus(ok ? "ok" : "error");
+    } catch(e) { setSaveStatus("error"); }
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
   const handleDelete = async (sub) => {
     try {
       await apiCall("DELETE", { id: sub.id });
@@ -1274,6 +1691,7 @@ function AppInner() {
       {view === "client" && <ClientForm onSubmit={handleSubmit}/>}
       {view === "family" && <FamilyForm onSubmit={handleSubmit}/>}
       {view === "docs" && <DocsOnlyForm onSubmit={handleSubmit}/>}
+      {view === "edit" && <EditForm onUpdate={handleUpdate}/>}
       {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }}/>}
       {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} onDelete={handleDelete}/>}
     </div>
