@@ -33,7 +33,7 @@ async function checkAndNotify(sql, parent_name, childName, newFormType) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -50,6 +50,16 @@ export default async function handler(req, res) {
       const childName = answers?.s0_1 || answers?.f0_1 || "";
       await checkAndNotify(sql, parent_name || "", childName, form_type || "anamnez");
       return res.status(200).json({ ok: true, id: result[0].id });
+    }
+
+    if (req.method === 'PATCH') {
+      const { id, answers, form_type } = req.body;
+      await sql`
+        UPDATE ankety SET answers = ${JSON.stringify(answers)}, form_type = ${form_type}
+        WHERE id = ${id}
+      `;
+      await sendTelegram(`✏️ <b>Анкета обновлена</b>\n\nID: ${id}\nТип: ${form_type === "family" ? "Семейный фон" : "М.И. Лынской"}\n🕐 ${new Date().toLocaleString("ru-RU")}`);
+      return res.status(200).json({ ok: true });
     }
 
     if (req.method === 'GET') {
