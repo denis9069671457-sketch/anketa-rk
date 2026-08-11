@@ -1075,11 +1075,15 @@ async function loadFromSheets() {
 
 // ─── App root ─────────────────────────────────────────────────────────────────
 function AppInner() {
-  const [view, setView] = React.useState("client");
+  const [pendingOpenId, setPendingOpenId] = React.useState(() => {
+    try { return new URLSearchParams(window.location.search).get("open"); } catch(e) { return null; }
+  });
+  const [view, setView] = React.useState(() => (pendingOpenId ? "adminLogin" : "client"));
   const [auth, setAuth] = React.useState(false);
   const [submissions, setSubmissions] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [saveStatus, setSaveStatus] = React.useState(null);
+  const didAutoLoad = React.useRef(false);
 
   const loadSubmissions = async () => {
     setLoading(true);
@@ -1089,6 +1093,13 @@ function AppInner() {
     } catch(e) { setSubmissions([]); }
     setLoading(false);
   };
+
+  React.useEffect(() => {
+    if (view === "admin" && auth && !didAutoLoad.current) {
+      didAutoLoad.current = true;
+      loadSubmissions();
+    }
+  }, [view, auth]);
 
   const handleSubmit = async (sub) => {
     setSaveStatus("saving");
@@ -1129,7 +1140,7 @@ function AppInner() {
       {view === "docs" && <DocsOnlyForm onSubmit={handleSubmit}/>}
       {view === "edit" && <EditForm onUpdate={handleUpdate}/>}
       {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }}/>}
-      {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} onDelete={handleDelete}/>}
+      {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} onDelete={handleDelete} pendingOpenId={pendingOpenId} onConsumeOpenId={() => setPendingOpenId(null)}/>}
     </div>
   );
 }
@@ -1431,7 +1442,7 @@ function mergeDocumentGroups(subs) {
 // ─── Admin panel ──────────────────────────────────────────────────────────────
 const DELETE_PASSWORD = "3222";
 
-function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) {
+function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete, pendingOpenId, onConsumeOpenId }) {
   const [sel, setSel] = useState(null);
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -1448,6 +1459,14 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
         return n.includes(search.toLowerCase()) || p.includes(search.toLowerCase());
       })
     : groupedSubs;
+
+  React.useEffect(() => {
+    if (!pendingOpenId || !groupedSubs.length) return;
+    const target = String(pendingOpenId);
+    const match = groupedSubs.find(s => String(s.id) === target || (s._mergedIds && s._mergedIds.some(id => String(id) === target)));
+    if (match) { setSel(match); setTimeout(() => topRef?.current?.scrollIntoView(), 50); }
+    if (onConsumeOpenId) onConsumeOpenId();
+  }, [pendingOpenId, groupedSubs]);
 
   const doExport = (sub) => { try { exportToWord(sub); } catch(e) {} };
   const confirmDelete = (sub) => { setDeleteTarget(sub); setDeletePw(""); setDeleteErr(false); };
