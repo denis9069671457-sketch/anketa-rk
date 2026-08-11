@@ -1464,7 +1464,14 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete, pe
     if (!pendingOpenId || !groupedSubs.length) return;
     const target = String(pendingOpenId);
     const match = groupedSubs.find(s => String(s.id) === target || (s._mergedIds && s._mergedIds.some(id => String(id) === target)));
-    if (match) { setSel(match); setTimeout(() => topRef?.current?.scrollIntoView(), 50); }
+    if (match) {
+      // Показываем все записи этого клиента (анкету, семейный фон, документы) списком,
+      // а не сразу открываем одну — админ сам выбирает, что открыть.
+      const q = (match.parent_name || match.answers?.s0_1 || match.answers?.f0_1 || "").trim();
+      if (q) setSearch(q);
+      setSel(null);
+      setTimeout(() => topRef?.current?.scrollIntoView(), 50);
+    }
     if (onConsumeOpenId) onConsumeOpenId();
   }, [pendingOpenId, groupedSubs]);
 
