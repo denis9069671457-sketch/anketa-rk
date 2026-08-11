@@ -1575,17 +1575,17 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
             : { label:"📋 М.И. Лынской", bg:C.tealLight, color:C.tealDark };
           return (
             <div key={sub.id || idx} style={{ background:C.grayLight, borderRadius:12, padding:"16px 20px", marginBottom:12, border:`1px solid ${C.grayBorder}` }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-                <div style={{ flex:1 }}>
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                <div style={{ minWidth:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2, flexWrap:"wrap" }}>
-                    <p style={{ margin:0, fontWeight:700, fontSize:15, color:C.dark }}>{name}</p>
-                    <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10, background:badge.bg, color:badge.color }}>{badge.label}</span>
-                    {sub._mergedIds && sub._mergedIds.length > 1 && <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10, background:C.tealLight, color:C.tealDark }}>{sub._mergedIds.length} отправки объединены</span>}
+                    <p style={{ margin:0, fontWeight:700, fontSize:15, color:C.dark, wordBreak:"break-word" }}>{name}</p>
+                    <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10, background:badge.bg, color:badge.color, whiteSpace:"nowrap" }}>{badge.label}</span>
+                    {sub._mergedIds && sub._mergedIds.length > 1 && <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10, background:C.tealLight, color:C.tealDark, whiteSpace:"nowrap" }}>{sub._mergedIds.length} отправки объединены</span>}
                   </div>
-                  <p style={{ margin:"0 0 2px", fontSize:12, color:C.grayMid }}>Родитель: {sub.parent_name || "—"}</p>
+                  <p style={{ margin:"0 0 2px", fontSize:12, color:C.grayMid, wordBreak:"break-word" }}>Родитель: {sub.parent_name || "—"}</p>
                   <p style={{ margin:0, fontSize:12, color:C.grayMid }}>{city}{city?" · ":""}{dateStr}</p>
                 </div>
-                <div style={{ display:"flex", gap:8, flexShrink:0, flexWrap:"wrap" }}>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   <button onClick={() => { setSel(sub); topRef?.current?.scrollIntoView(); }} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:C.grayLight, color:C.gray }}>👁 Просмотр</button>
                   <button onClick={() => doExport(sub)} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:C.yellow, color:C.dark }}>📄 PDF</button>
                   <button onClick={() => confirmDelete(sub)} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:"#fee2e2", color:"#e84545" }}>🗑️</button>
