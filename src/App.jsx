@@ -470,7 +470,7 @@ function Header({ view, setView, auth, onLogout }) {
         </div>
         {auth && view==="admin" && <button onClick={onLogout} style={{flexShrink:0,background:"transparent",border:"1px solid rgba(255,255,255,0.2)",color:"rgba(255,255,255,0.5)",borderRadius:16,padding:"4px 10px",cursor:"pointer",fontSize:11}}>Выйти</button>}
       </div>
-      <div style={{maxWidth:900,margin:"0 auto",padding:"8px 16px 10px",display:"flex",gap:6,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+      <div style={{maxWidth:900,margin:"0 auto",padding:"8px 16px 10px",display:"flex",gap:6,flexWrap:"wrap"}}>
         {navItems.map(item=>(
           <button key={item.key} onClick={()=>handleNav(item.key)} style={{flexShrink:0,padding:"6px 14px",borderRadius:16,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,whiteSpace:"nowrap",background:isActive(item.key)?C.teal:"rgba(255,255,255,0.1)",color:isActive(item.key)?"#fff":"rgba(255,255,255,0.65)"}}>
             {item.label}
