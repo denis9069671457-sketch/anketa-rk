@@ -1016,7 +1016,7 @@ async function apiCall(method, params = {}) {
   const res = await fetch(url.toString(), {
     method,
     headers: { "Content-Type": "application/json" },
-    body: method === "POST" ? JSON.stringify(params) : undefined,
+    body: (method === "POST" || method === "PATCH") ? JSON.stringify(params) : undefined,
   });
   if (!res.ok) throw new Error(`API ${res.status}`);
   return res.json();
@@ -1101,11 +1101,13 @@ function AppInner() {
 
   const handleUpdate = async (id, answers, formType) => {
     setSaveStatus("saving");
+    let ok = false;
     try {
-      const ok = await updateSubmission(id, answers, formType);
+      ok = await updateSubmission(id, answers, formType);
       setSaveStatus(ok ? "ok" : "error");
-    } catch(e) { setSaveStatus("error"); }
+    } catch(e) { setSaveStatus("error"); ok = false; }
     setTimeout(() => setSaveStatus(null), 3000);
+    return ok;
   };
 
   const handleDelete = async (sub) => {
@@ -1192,7 +1194,8 @@ function EditForm({ onUpdate }) {
 
   const handleSave = async () => {
     const ok = await onUpdate(selected.id, answers, selected.form_type);
-    if (ok !== false) setSaved(true);
+    if (ok === true) { setSaved(true); setError(""); }
+    else { setSaved(false); setError("Не удалось сохранить изменения. Проверьте интернет и попробуйте ещё раз."); }
   };
 
   const goSec = (n) => {
@@ -1295,6 +1298,11 @@ function EditForm({ onUpdate }) {
         {saved && (
           <div style={{ background:"#27ae60", color:"#fff", borderRadius:10, padding:"12px 18px", marginBottom:16, fontSize:14, fontWeight:700, textAlign:"center" }}>
             ✅ Анкета успешно обновлена!
+          </div>
+        )}
+        {error && (
+          <div style={{ background:"#e84545", color:"#fff", borderRadius:10, padding:"12px 18px", marginBottom:16, fontSize:14, fontWeight:700, textAlign:"center" }}>
+            ⚠️ {error}
           </div>
         )}
 
