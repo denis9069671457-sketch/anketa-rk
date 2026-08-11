@@ -1110,8 +1110,9 @@ function AppInner() {
 
   const handleDelete = async (sub) => {
     try {
-      await apiCall("DELETE", { id: sub.id });
-      setSubmissions(prev => prev.filter(s => s.id !== sub.id));
+      const ids = (sub && sub._mergedIds && sub._mergedIds.length) ? sub._mergedIds : [sub.id];
+      await Promise.all(ids.map(id => apiCall("DELETE", { id })));
+      setSubmissions(prev => prev.filter(s => !ids.includes(s.id)));
     } catch(e) { console.error("Delete error:", e); }
   };
 
@@ -1356,6 +1357,69 @@ function AdminLogin({ onLogin }) {
   );
 }
 
+// ─── Group duplicate "documents" submissions into one card per client ────────
+function normName(s) { return (s || "").toLowerCase().trim().replace(/\s+/g, " "); }
+
+function mergeDocumentGroups(subs) {
+  const docs = subs.filter(s => s.form_type === "documents");
+  const others = subs.filter(s => s.form_type !== "documents");
+  const groups = {};
+
+  docs.forEach(sub => {
+    const childName = sub.answers?.s0_1 || "";
+    const key = normName(childName) + "|" + normName(sub.parent_name);
+    if (!groups[key]) {
+      groups[key] = {
+        id: sub.id,
+        _mergedIds: [],
+        date: sub.date,
+        parent_name: sub.parent_name,
+        form_type: "documents",
+        answers: { s0_1: childName, checkedDocs: {}, fileNames: [], fileData: [], comments: [] },
+      };
+    }
+    const g = groups[key];
+    g._mergedIds.push(sub.id);
+    if (new Date(sub.date) > new Date(g.date)) { g.date = sub.date; g.id = sub.id; }
+
+    let checked = {}, fileNames = [], fileData = [];
+    try { checked = JSON.parse(sub.answers?.checkedDocs || "{}"); } catch(e) {}
+    try { fileNames = JSON.parse(sub.answers?.fileNames || "[]"); } catch(e) {}
+    try { fileData = JSON.parse(sub.answers?.fileData || "[]"); } catch(e) {}
+
+    Object.entries(checked).forEach(([k, v]) => { if (v) g.answers.checkedDocs[k] = true; });
+
+    fileNames.forEach(fn => {
+      const dup = g.answers.fileNames.some(x => x.docId === fn.docId && x.fileName === fn.fileName);
+      if (!dup) {
+        g.answers.fileNames.push(fn);
+        const fd = fileData.find(f => f.docId === fn.docId);
+        if (fd) g.answers.fileData.push(fd);
+      }
+    });
+
+    const c = (sub.answers?.comment || "").trim();
+    if (c && !g.answers.comments.includes(c)) g.answers.comments.push(c);
+  });
+
+  const mergedDocs = Object.values(groups).map(g => ({
+    id: g.id,
+    _mergedIds: Array.from(new Set(g._mergedIds)),
+    date: g.date,
+    parent_name: g.parent_name,
+    form_type: "documents",
+    answers: {
+      s0_1: g.answers.s0_1,
+      checkedDocs: JSON.stringify(g.answers.checkedDocs),
+      fileNames: JSON.stringify(g.answers.fileNames),
+      fileData: JSON.stringify(g.answers.fileData),
+      comment: g.answers.comments.join(" | "),
+    },
+  }));
+
+  return [...others, ...mergedDocs].sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
 // ─── Admin panel ──────────────────────────────────────────────────────────────
 const DELETE_PASSWORD = "3222";
 
@@ -1368,13 +1432,14 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
   const topRef = useRef(null);
 
   const safeSubs = Array.isArray(submissions) ? submissions : [];
+  const groupedSubs = React.useMemo(() => mergeDocumentGroups(safeSubs), [safeSubs]);
   const filteredSubs = search.trim()
-    ? safeSubs.filter(s => {
+    ? groupedSubs.filter(s => {
         const n = (s.answers?.s0_1 || s.answers?.f0_1 || "").toLowerCase();
         const p = (s.parent_name || "").toLowerCase();
         return n.includes(search.toLowerCase()) || p.includes(search.toLowerCase());
       })
-    : safeSubs;
+    : groupedSubs;
 
   const doExport = (sub) => { try { exportToWord(sub); } catch(e) {} };
   const confirmDelete = (sub) => { setDeleteTarget(sub); setDeletePw(""); setDeleteErr(false); };
@@ -1388,7 +1453,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
       <div style={{ background:"#fff", borderRadius:16, padding:"36px 32px", maxWidth:400, width:"100%", textAlign:"center" }}>
         <div style={{ fontSize:48, marginBottom:12 }}>🗑️</div>
         <h3 style={{ fontSize:18, color:"#1a2a2a", marginBottom:8 }}>Удалить анкету?</h3>
-        <p style={{ fontSize:13, color:"#666", marginBottom:20 }}><b>{deleteTarget.answers?.s0_1 || deleteTarget.answers?.f0_1 || "Без имени"}</b><br/>Это действие нельзя отменить.</p>
+        <p style={{ fontSize:13, color:"#666", marginBottom:20 }}><b>{deleteTarget.answers?.s0_1 || deleteTarget.answers?.f0_1 || "Без имени"}</b><br/>Это действие нельзя отменить.{deleteTarget._mergedIds && deleteTarget._mergedIds.length > 1 ? ` Будет удалено записей: ${deleteTarget._mergedIds.length}.` : ""}</p>
         <input type="password" placeholder="Пароль для удаления" value={deletePw}
           onChange={e => { setDeletePw(e.target.value); setDeleteErr(false); }}
           onKeyDown={e => e.key === "Enter" && executeDelete()}
@@ -1416,7 +1481,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
         <h2 style={{ fontSize:20, color:C.dark, marginBottom:4 }}>{sel.answers?.s0_1 || sel.answers?.f0_1 || "—"}</h2>
         <p style={{ fontSize:13, color:C.grayMid, marginBottom:4 }}>Родитель: <b style={{color:C.dark}}>{sel.parent_name || "—"}</b></p>
         <p style={{ fontSize:13, color:C.grayMid, marginBottom:4 }}>Тип: <b style={{color:C.teal}}>{sel.form_type === "family" ? "🧬 Семейный фон" : sel.form_type === "documents" ? "📋 Документы" : "📋 М.И. Лынской"}</b></p>
-        <p style={{ fontSize:13, color:C.grayMid, marginBottom:20 }}>Дата: {sel.date ? new Date(sel.date).toLocaleString("ru-RU") : "—"}</p>
+        <p style={{ fontSize:13, color:C.grayMid, marginBottom:20 }}>Дата: {sel.date ? new Date(sel.date).toLocaleString("ru-RU") : "—"}{sel._mergedIds && sel._mergedIds.length > 1 ? ` · Объединено отправок: ${sel._mergedIds.length}` : ""}</p>
         {sel.form_type === "documents" ? (
           <div>
             {(() => {
@@ -1430,13 +1495,16 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
                   </p>
                   {group.items.map(item => {
                     const isChecked = checked[item.id];
-                    const file = fileNames.find(f => f.docId === item.id);
-                    const fd = fileData.find(f => f.docId === item.id);
+                    const itemFiles = fileNames.filter(f => f.docId === item.id);
                     return (
-                      <div key={item.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, padding:"8px 12px", background:isChecked?"#e8f8f8":"#fafafa", borderRadius:8 }}>
+                      <div key={item.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, padding:"8px 12px", background:isChecked?"#e8f8f8":"#fafafa", borderRadius:8, flexWrap:"wrap" }}>
                         <span>{isChecked ? "✅" : "⬜"}</span>
                         <span style={{ flex:1, fontSize:13, color:isChecked?C.tealDark:C.grayMid }}>{item.label}</span>
-                        {file && fd && <a href={fd.data} download={file.fileName} style={{ fontSize:12, color:C.teal, fontWeight:600, textDecoration:"none", background:C.tealLight, padding:"4px 10px", borderRadius:8 }}>📎 {file.fileName}</a>}
+                        {itemFiles.map((file, fi) => {
+                          const fd = fileData.find(f => f.docId === file.docId && (f.fileName ? f.fileName === file.fileName : true));
+                          if (!fd) return null;
+                          return <a key={fi} href={fd.data} download={file.fileName} style={{ fontSize:12, color:C.teal, fontWeight:600, textDecoration:"none", background:C.tealLight, padding:"4px 10px", borderRadius:8 }}>📎 {file.fileName}</a>;
+                        })}
                       </div>
                     );
                   })}
@@ -1475,7 +1543,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
           <Logo size={44}/>
           <div>
             <h2 style={{ margin:0, fontSize:20, color:C.dark }}>Панель администратора</h2>
-            <p style={{ margin:"2px 0 0", fontSize:13, color:C.grayMid }}>Всего анкет: {safeSubs.length}</p>
+            <p style={{ margin:"2px 0 0", fontSize:13, color:C.grayMid }}>Всего анкет: {groupedSubs.length}</p>
           </div>
           <button onClick={onRefresh} disabled={loading} style={{ marginLeft:"auto", padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, background:C.grayLight, color:C.gray }}>
             {loading ? "⏳ Загружаем..." : "↻ Обновить"}
@@ -1488,8 +1556,8 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
           {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:20, color:C.grayMid, padding:0 }}>×</button>}
         </div>
         {loading && <div style={{ textAlign:"center", padding:"40px 0", color:C.grayMid }}><div style={{ fontSize:32, marginBottom:12 }}>⏳</div><p>Загружаем анкеты...</p></div>}
-        {!loading && safeSubs.length === 0 && <div style={{ textAlign:"center", padding:"48px 0", color:"#bbb" }}><div style={{ fontSize:48, marginBottom:12 }}>📋</div><p>Пока нет анкет</p><p style={{ fontSize:12, marginTop:8 }}>Нажмите «↻ Обновить»</p></div>}
-        {!loading && safeSubs.length > 0 && filteredSubs.length === 0 && <div style={{ textAlign:"center", padding:"40px 0", color:"#bbb" }}><div style={{ fontSize:40, marginBottom:12 }}>🔍</div><p>Ничего не найдено</p></div>}
+        {!loading && groupedSubs.length === 0 && <div style={{ textAlign:"center", padding:"48px 0", color:"#bbb" }}><div style={{ fontSize:48, marginBottom:12 }}>📋</div><p>Пока нет анкет</p><p style={{ fontSize:12, marginTop:8 }}>Нажмите «↻ Обновить»</p></div>}
+        {!loading && groupedSubs.length > 0 && filteredSubs.length === 0 && <div style={{ textAlign:"center", padding:"40px 0", color:"#bbb" }}><div style={{ fontSize:40, marginBottom:12 }}>🔍</div><p>Ничего не найдено</p></div>}
         {!loading && filteredSubs.map((sub, idx) => {
           const name = sub.answers?.s0_1 || sub.answers?.f0_1 || "Без имени";
           const city = sub.answers?.s0_4 || sub.answers?.f0_4 || "";
@@ -1504,6 +1572,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete }) 
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2, flexWrap:"wrap" }}>
                     <p style={{ margin:0, fontWeight:700, fontSize:15, color:C.dark }}>{name}</p>
                     <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10, background:badge.bg, color:badge.color }}>{badge.label}</span>
+                    {sub._mergedIds && sub._mergedIds.length > 1 && <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10, background:C.tealLight, color:C.tealDark }}>{sub._mergedIds.length} отправки объединены</span>}
                   </div>
                   <p style={{ margin:"0 0 2px", fontSize:12, color:C.grayMid }}>Родитель: {sub.parent_name || "—"}</p>
                   <p style={{ margin:0, fontSize:12, color:C.grayMid }}>{city}{city?" · ":""}{dateStr}</p>
