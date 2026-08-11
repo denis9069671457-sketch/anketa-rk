@@ -58,7 +58,6 @@ export default async function handler(req, res) {
         UPDATE ankety SET answers = ${JSON.stringify(answers)}, form_type = ${form_type}
         WHERE id = ${id}
       `;
-      await sendTelegram(`✏️ <b>Анкета обновлена</b>\n\nID: ${id}\nТип: ${form_type === "family" ? "Семейный фон" : "М.И. Лынской"}\n🕐 ${new Date().toLocaleString("ru-RU")}`);
       return res.status(200).json({ ok: true });
     }
 
