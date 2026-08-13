@@ -93,6 +93,7 @@ const SECTIONS = [
       {id:"s0_2",label:"Дата рождения ребенка",type:"text"},
       {id:"s0_3",label:"Возраст на момент прохождения диагностики",type:"text"},
       {id:"s0_4",label:"Город проживания",type:"text"},
+      {id:"s0_5",label:"Формат прохождения диагностики",type:"radio",options:["Онлайн","Очно в центре"]},
     ]
   },
   {
@@ -399,6 +400,7 @@ function exportToWord(submission) {
       <tr><td class="q-cell">Дата рождения</td><td>${esc(submission.answers?.[dobKey])}</td></tr>
       <tr><td class="q-cell">Возраст на момент диагностики</td><td>${esc(submission.answers?.[ageKey])}</td></tr>
       <tr><td class="q-cell">Город проживания</td><td>${esc(submission.answers?.[cityKey])}</td></tr>
+      ${!isFamily ? `<tr><td class="q-cell">Формат прохождения диагностики</td><td>${esc(submission.answers?.s0_5)}</td></tr>` : ''}
     </table>`;
 
   sections.slice(1).forEach(sec => {
@@ -426,6 +428,26 @@ const inputStyle = { width:"100%", border:"1.5px solid #e2e8f0", borderRadius:8,
 function Field({ field, value, onChange }) {
   const [focused, setFocused] = useState(false);
   const style = { ...inputStyle, borderColor: focused ? C.teal : C.grayBorder };
+  if (field.type === "radio") {
+    return (
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+        {field.options.map(opt => {
+          const active = value === opt;
+          return (
+            <button key={opt} type="button" onClick={()=>onChange(opt)} style={{
+              padding:"11px 22px", borderRadius:10, cursor:"pointer", fontSize:14, fontWeight:700,
+              border:`2px solid ${active ? C.teal : C.grayBorder}`,
+              background: active ? C.teal : "#fff",
+              color: active ? "#fff" : C.gray,
+              transition:"all .2s",
+            }}>
+              {active ? "✓ " : ""}{opt}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
   return field.type === "textarea"
     ? <textarea rows={3} style={style} value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Введите ответ..." onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)}/>
     : <input type="text" style={style} value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Введите ответ..." onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)}/>;
@@ -1705,6 +1727,7 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2, flexWrap:"wrap" }}>
                     <p style={{ margin:0, fontWeight:700, fontSize:15, color:C.dark, wordBreak:"break-word" }}>{name}</p>
                     <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10, background:badge.bg, color:badge.color, whiteSpace:"nowrap" }}>{badge.label}</span>
+                    {sub.answers?.s0_5 && <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10, background: sub.answers.s0_5==="Онлайн" ? "#e0f2fe" : "#fff3e0", color: sub.answers.s0_5==="Онлайн" ? "#0369a1" : "#c2680a", whiteSpace:"nowrap" }}>{sub.answers.s0_5==="Онлайн" ? "💻 Онлайн" : "🏢 Очно"}</span>}
                     {sub._mergedIds && sub._mergedIds.length > 1 && <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10, background:C.tealLight, color:C.tealDark, whiteSpace:"nowrap" }}>{sub._mergedIds.length} отправки объединены</span>}
                   </div>
                   <p style={{ margin:"0 0 2px", fontSize:12, color:C.grayMid, wordBreak:"break-word" }}>Родитель: {sub.parent_name || "—"}</p>
