@@ -1546,14 +1546,13 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
   const downloadFullBackup = async () => {
     setBackingUp(true);
     try {
-      const result = await apiCall("GET", { backup: "1" });
-      const rows = result.data || [];
-      const payload = { exported_at: new Date().toISOString(), count: rows.length, records: rows };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+      const res = await fetch("/api/save?backup=1");
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `anketa-rk-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `anketa-rk-backup-${new Date().toISOString().slice(0, 10)}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
