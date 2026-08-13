@@ -19,6 +19,21 @@ function cabinetLink(id) {
   return `${SITE_URL}/?open=${id}`;
 }
 
+// Убирает тяжёлые base64-файлы из ответа для списков/автообновления.
+// Реальные файлы догружаются отдельно по id через ?ids=...
+function stripDocsHeavyFields(row) {
+  if (!row || row.form_type !== 'documents') return row;
+  let ans = row.answers;
+  let wasString = typeof ans === 'string';
+  try {
+    const obj = wasString ? JSON.parse(ans) : (ans || {});
+    if (obj && obj.fileData !== undefined) obj.fileData = wasString ? '[]' : [];
+    return { ...row, answers: wasString ? JSON.stringify(obj) : obj };
+  } catch(e) {
+    return row;
+  }
+}
+
 async function checkAndNotify(sql, parent_name, childName, newFormType, recordId) {
   const rows = await sql`SELECT form_type FROM ankety WHERE parent_name = ${parent_name} ORDER BY date DESC`;
   const formTypes = new Set(rows.map(r => r.form_type));
@@ -69,7 +84,17 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'GET') {
-      const { child_name, form_type } = req.query;
+      const { child_name, form_type, ids } = req.query;
+
+      // Догрузка конкретных записей ПОЛНОСТЬЮ (с файлами) — используется только
+      // когда админ реально открывает карточку "Документы" или печатает её.
+      if (ids) {
+        const idList = String(ids).split(',').map(s => Number(s.trim())).filter(n => Number.isFinite(n));
+        if (!idList.length) return res.status(200).json({ ok: true, data: [] });
+        const rows = await sql`SELECT id, date, answers, parent_name, form_type FROM ankety WHERE id = ANY(${idList})`;
+        return res.status(200).json({ ok: true, data: rows });
+      }
+
       if (child_name) {
         const rows = await sql`SELECT id, date, answers, parent_name, form_type FROM ankety WHERE form_type = 'documents' ORDER BY date DESC LIMIT 20`;
         const name = child_name.toLowerCase();
@@ -77,12 +102,15 @@ export default async function handler(req, res) {
           const n = (r.answers?.s0_1 || r.parent_name || '').toLowerCase();
           return n.includes(name.split(' ')[0]) || name.includes(n.split(' ')[0]);
         });
-        return res.status(200).json({ ok: true, data: match || null });
+        return res.status(200).json({ ok: true, data: match ? stripDocsHeavyFields(match) : null });
       }
+
+      // Обычный список (первая загрузка, автообновление, поиск в разделе "Редактировать")
+      // — отдаём БЕЗ содержимого файлов, чтобы не гонять тяжёлые base64-строки лишний раз.
       const rows = form_type
         ? await sql`SELECT id, date, answers, parent_name, form_type FROM ankety WHERE form_type = ${form_type} ORDER BY date DESC`
         : await sql`SELECT id, date, answers, parent_name, form_type FROM ankety ORDER BY date DESC`;
-      return res.status(200).json({ ok: true, data: rows });
+      return res.status(200).json({ ok: true, data: rows.map(stripDocsHeavyFields) });
     }
 
     if (req.method === 'DELETE') {
