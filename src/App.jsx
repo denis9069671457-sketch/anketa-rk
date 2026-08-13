@@ -1058,8 +1058,22 @@ async function updateSubmission(id, answers, formType) {
 }
 
 async function loadFromSheets() {
+  const result = await apiCall("GET");
+  return (result.data || []).map(row => ({
+    id: row.id,
+    date: row.date,
+    answers: typeof row.answers === "string" ? JSON.parse(row.answers) : (row.answers || {}),
+    parent_name: row.parent_name || "",
+    form_type: row.form_type || "anamnez",
+  }));
+}
+
+// Догружает ПОЛНЫЕ данные (с прикреплёнными файлами) для конкретных id —
+// вызывается только когда админ реально открывает карточку "Документы" или печатает её.
+async function loadFullDocumentsByIds(ids) {
+  if (!ids || !ids.length) return [];
   try {
-    const result = await apiCall("GET");
+    const result = await apiCall("GET", { ids: ids.join(",") });
     return (result.data || []).map(row => ({
       id: row.id,
       date: row.date,
@@ -1068,7 +1082,7 @@ async function loadFromSheets() {
       form_type: row.form_type || "anamnez",
     }));
   } catch(e) {
-    console.error("Load error:", e);
+    console.error("Load full docs error:", e);
     return [];
   }
 }
@@ -1082,16 +1096,24 @@ function AppInner() {
   const [auth, setAuth] = React.useState(false);
   const [submissions, setSubmissions] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
+  const [loadError, setLoadError] = React.useState(null);
   const [saveStatus, setSaveStatus] = React.useState(null);
   const didAutoLoad = React.useRef(false);
 
-  const loadSubmissions = async () => {
-    setLoading(true);
+  const loadSubmissions = async (silent = false) => {
+    if (!silent) setLoading(true);
+    if (!silent) setLoadError(null);
     try {
       const subs = await loadFromSheets();
       setSubmissions(Array.isArray(subs) ? subs : []);
-    } catch(e) { setSubmissions([]); }
-    setLoading(false);
+      if (silent) setLoadError(null);
+    } catch(e) {
+      console.error("Load error:", e);
+      if (!silent) setLoadError(e?.message || "Не удалось загрузить анкеты");
+      // Тихие фоновые обновления не показывают баннер ошибки — просто попробуем на следующем тике.
+      // Не затираем уже показанные данные — если анкеты были загружены раньше, они останутся видны.
+    }
+    if (!silent) setLoading(false);
   };
 
   React.useEffect(() => {
@@ -1099,6 +1121,15 @@ function AppInner() {
       didAutoLoad.current = true;
       loadSubmissions();
     }
+  }, [view, auth]);
+
+  // Автообновление списка анкет каждые 20 секунд, пока открыта вкладка "Администратор".
+  React.useEffect(() => {
+    if (!(view === "admin" && auth)) return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") loadSubmissions(true);
+    }, 20000);
+    return () => clearInterval(interval);
   }, [view, auth]);
 
   const handleSubmit = async (sub) => {
@@ -1140,7 +1171,7 @@ function AppInner() {
       {view === "docs" && <DocsOnlyForm onSubmit={handleSubmit}/>}
       {view === "edit" && <EditForm onUpdate={handleUpdate}/>}
       {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }}/>}
-      {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} onRefresh={loadSubmissions} onDelete={handleDelete} pendingOpenId={pendingOpenId} onConsumeOpenId={() => setPendingOpenId(null)}/>}
+      {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} loadError={loadError} onRefresh={loadSubmissions} onDelete={handleDelete} pendingOpenId={pendingOpenId} onConsumeOpenId={() => setPendingOpenId(null)}/>}
     </div>
   );
 }
@@ -1442,12 +1473,14 @@ function mergeDocumentGroups(subs) {
 // ─── Admin panel ──────────────────────────────────────────────────────────────
 const DELETE_PASSWORD = "3222";
 
-function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete, pendingOpenId, onConsumeOpenId }) {
+function AdminPanel({ submissions = [], loading = false, loadError = null, onRefresh, onDelete, pendingOpenId, onConsumeOpenId }) {
   const [sel, setSel] = useState(null);
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletePw, setDeletePw] = useState("");
   const [deleteErr, setDeleteErr] = useState(false);
+  const [openingId, setOpeningId] = useState(null);
+  const [exportingId, setExportingId] = useState(null);
   const topRef = useRef(null);
 
   const safeSubs = Array.isArray(submissions) ? submissions : [];
@@ -1475,7 +1508,39 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete, pe
     if (onConsumeOpenId) onConsumeOpenId();
   }, [pendingOpenId, groupedSubs]);
 
-  const doExport = (sub) => { try { exportToWord(sub); } catch(e) {} };
+  // Для карточек "Документы" список грузится БЕЗ файлов (экономим трафик/вычисления).
+  // Реальные файлы догружаются здесь — только когда админ открывает карточку.
+  const hydrateDocsSubmission = async (sub) => {
+    if (sub.form_type !== "documents" || sub._hydrated || !sub._mergedIds || !sub._mergedIds.length) return sub;
+    const fullRows = await loadFullDocumentsByIds(sub._mergedIds);
+    const merged = mergeDocumentGroups(fullRows);
+    return merged[0] ? { ...merged[0], _hydrated: true } : sub;
+  };
+
+  const openSubmission = async (sub) => {
+    if (sub.form_type === "documents" && !sub._hydrated) {
+      setOpeningId(sub.id);
+      try {
+        const full = await hydrateDocsSubmission(sub);
+        setSel(full);
+      } finally {
+        setOpeningId(null);
+      }
+    } else {
+      setSel(sub);
+    }
+    topRef?.current?.scrollIntoView();
+  };
+
+  const doExport = async (sub) => {
+    setExportingId(sub.id);
+    try {
+      const full = await hydrateDocsSubmission(sub);
+      exportToWord(full);
+    } catch(e) {} finally {
+      setExportingId(null);
+    }
+  };
   const confirmDelete = (sub) => { setDeleteTarget(sub); setDeletePw(""); setDeleteErr(false); };
   const executeDelete = () => {
     if (deletePw === DELETE_PASSWORD) { onDelete(deleteTarget); setDeleteTarget(null); if (sel?.id === deleteTarget.id) setSel(null); }
@@ -1577,7 +1642,7 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete, pe
           <Logo size={44}/>
           <div>
             <h2 style={{ margin:0, fontSize:20, color:C.dark }}>Панель администратора</h2>
-            <p style={{ margin:"2px 0 0", fontSize:13, color:C.grayMid }}>Всего анкет: {groupedSubs.length}</p>
+            <p style={{ margin:"2px 0 0", fontSize:13, color:C.grayMid }}>Всего анкет: {groupedSubs.length} · обновляется автоматически</p>
           </div>
           <button onClick={onRefresh} disabled={loading} style={{ marginLeft:"auto", padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, background:C.grayLight, color:C.gray }}>
             {loading ? "⏳ Загружаем..." : "↻ Обновить"}
@@ -1590,7 +1655,14 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete, pe
           {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:20, color:C.grayMid, padding:0 }}>×</button>}
         </div>
         {loading && <div style={{ textAlign:"center", padding:"40px 0", color:C.grayMid }}><div style={{ fontSize:32, marginBottom:12 }}>⏳</div><p>Загружаем анкеты...</p></div>}
-        {!loading && groupedSubs.length === 0 && <div style={{ textAlign:"center", padding:"48px 0", color:"#bbb" }}><div style={{ fontSize:48, marginBottom:12 }}>📋</div><p>Пока нет анкет</p><p style={{ fontSize:12, marginTop:8 }}>Нажмите «↻ Обновить»</p></div>}
+        {!loading && loadError && (
+          <div style={{ background:"#fee2e2", border:"1.5px solid #f5a5a5", borderRadius:12, padding:"16px 20px", marginBottom:16, textAlign:"center" }}>
+            <p style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#c53030" }}>⚠️ Не удалось обновить список анкет</p>
+            <p style={{ margin:"0 0 12px", fontSize:12, color:"#a94444" }}>Проверьте интернет-соединение и попробуйте ещё раз. {groupedSubs.length > 0 ? "Ниже показаны ранее загруженные данные." : ""}</p>
+            <button onClick={onRefresh} style={{ padding:"8px 18px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:"#e84545", color:"#fff" }}>↻ Попробовать ещё раз</button>
+          </div>
+        )}
+        {!loading && !loadError && groupedSubs.length === 0 && <div style={{ textAlign:"center", padding:"48px 0", color:"#bbb" }}><div style={{ fontSize:48, marginBottom:12 }}>📋</div><p>Пока нет анкет</p><p style={{ fontSize:12, marginTop:8 }}>Нажмите «↻ Обновить»</p></div>}
         {!loading && groupedSubs.length > 0 && filteredSubs.length === 0 && <div style={{ textAlign:"center", padding:"40px 0", color:"#bbb" }}><div style={{ fontSize:40, marginBottom:12 }}>🔍</div><p>Ничего не найдено</p></div>}
         {!loading && filteredSubs.map((sub, idx) => {
           const name = sub.answers?.s0_1 || sub.answers?.f0_1 || "Без имени";
@@ -1612,8 +1684,8 @@ function AdminPanel({ submissions = [], loading = false, onRefresh, onDelete, pe
                   <p style={{ margin:0, fontSize:12, color:C.grayMid }}>{city}{city?" · ":""}{dateStr}</p>
                 </div>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  <button onClick={() => { setSel(sub); topRef?.current?.scrollIntoView(); }} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:C.grayLight, color:C.gray }}>👁 Просмотр</button>
-                  <button onClick={() => doExport(sub)} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:C.yellow, color:C.dark }}>📄 PDF</button>
+                  <button onClick={() => openSubmission(sub)} disabled={openingId === sub.id} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:openingId===sub.id?"not-allowed":"pointer", fontSize:13, fontWeight:700, background:C.grayLight, color:C.gray, opacity:openingId===sub.id?0.6:1 }}>{openingId === sub.id ? "⏳ Загрузка..." : "👁 Просмотр"}</button>
+                  <button onClick={() => doExport(sub)} disabled={exportingId === sub.id} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:exportingId===sub.id?"not-allowed":"pointer", fontSize:13, fontWeight:700, background:C.yellow, color:C.dark, opacity:exportingId===sub.id?0.6:1 }}>{exportingId === sub.id ? "⏳ Готовим..." : "📄 PDF"}</button>
                   <button onClick={() => confirmDelete(sub)} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:"#fee2e2", color:"#e84545" }}>🗑️</button>
                 </div>
               </div>
