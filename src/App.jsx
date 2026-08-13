@@ -1541,6 +1541,29 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
       setExportingId(null);
     }
   };
+
+  const [backingUp, setBackingUp] = useState(false);
+  const downloadFullBackup = async () => {
+    setBackingUp(true);
+    try {
+      const result = await apiCall("GET", { backup: "1" });
+      const rows = result.data || [];
+      const payload = { exported_at: new Date().toISOString(), count: rows.length, records: rows };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `anketa-rk-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch(e) {
+      alert("Не удалось скачать резервную копию. Проверьте интернет и попробуйте ещё раз.");
+    } finally {
+      setBackingUp(false);
+    }
+  };
   const confirmDelete = (sub) => { setDeleteTarget(sub); setDeletePw(""); setDeleteErr(false); };
   const executeDelete = () => {
     if (deletePw === DELETE_PASSWORD) { onDelete(deleteTarget); setDeleteTarget(null); if (sel?.id === deleteTarget.id) setSel(null); }
@@ -1644,9 +1667,14 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
             <h2 style={{ margin:0, fontSize:20, color:C.dark }}>Панель администратора</h2>
             <p style={{ margin:"2px 0 0", fontSize:13, color:C.grayMid }}>Всего анкет: {groupedSubs.length} · обновляется автоматически</p>
           </div>
-          <button onClick={onRefresh} disabled={loading} style={{ marginLeft:"auto", padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, background:C.grayLight, color:C.gray }}>
-            {loading ? "⏳ Загружаем..." : "↻ Обновить"}
-          </button>
+          <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap" }}>
+            <button onClick={downloadFullBackup} disabled={backingUp} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:backingUp?"not-allowed":"pointer", fontSize:12, fontWeight:700, background:C.tealLight, color:C.tealDark, opacity:backingUp?0.6:1 }}>
+              {backingUp ? "⏳ Готовим файл..." : "💾 Скачать резервную копию"}
+            </button>
+            <button onClick={onRefresh} disabled={loading} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, background:C.grayLight, color:C.gray }}>
+              {loading ? "⏳ Загружаем..." : "↻ Обновить"}
+            </button>
+          </div>
         </div>
         <div style={{ position:"relative", marginBottom:16 }}>
           <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:15, color:C.grayMid, pointerEvents:"none" }}>🔍</span>
