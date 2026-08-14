@@ -1205,7 +1205,6 @@ function AppInner() {
   const [loading, setLoading] = React.useState(false);
   const [loadError, setLoadError] = React.useState(null);
   const [saveStatus, setSaveStatus] = React.useState(null);
-  const didAutoLoad = React.useRef(false);
 
   const loadSubmissions = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -1224,8 +1223,9 @@ function AppInner() {
   };
 
   React.useEffect(() => {
-    if (view === "admin" && auth && !didAutoLoad.current) {
-      didAutoLoad.current = true;
+    // Обновляем список каждый раз, когда заходим на вкладку "Администратор" —
+    // например, после правки анкеты в разделе "Редактировать" в этой же сессии.
+    if (view === "admin" && auth) {
       loadSubmissions();
     }
   }, [view, auth]);
