@@ -614,7 +614,7 @@ function ConsentScreen({ onAccept }) {
 }
 
 // ─── ClientForm ───────────────────────────────────────────────────────────────
-function ClientForm({ onSubmit }) {
+function ClientForm({ onSubmit, onCreateDocsBase, onAppendDocFile, onFinalizeDocs }) {
   const [step, setStep] = useState("consent");
   const [curSec, setCurSec] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -650,7 +650,8 @@ function ClientForm({ onSubmit }) {
   );
   if(step==="familyDone") return (
     <DocumentsScreen parentName={parentName} childName={answers["s0_1"]||""}
-      onSubmit={async(docData)=>{await onSubmit({...docData,answers:{...docData.answers,s0_1:answers["s0_1"]||""}});setStep("allDone");}}/>
+      onCreateBase={onCreateDocsBase} onAppendFile={onAppendDocFile} onFinalize={onFinalizeDocs}
+      onDone={()=>setStep("allDone")}/>
   );
   if(step==="allDone") return (
     <div style={{maxWidth:600,margin:"60px auto",padding:"0 20px",textAlign:"center"}}>
@@ -780,11 +781,47 @@ function FamilyForm({ onSubmit }) {
 }
 
 // ─── DocumentsScreen ──────────────────────────────────────────────────────────
-function DocumentsScreen({ parentName, childName, onSubmit, prevChecked = {}, prevDocs = null }) {
+// Сжимает фото на телефоне клиента перед отправкой (уменьшает разрешение и качество),
+// чтобы уложиться в лимит размера одного запроса к серверу. PDF и другие не-фото файлы не трогает.
+const MAX_FILE_BYTES = 3 * 1024 * 1024; // ~3 МБ на файл — безопасный запас под лимит сервера в 4.5 МБ
+function compressImageFile(file, maxDim = 1920, quality = 0.8) {
+  return new Promise((resolve) => {
+    if (!file.type || !file.type.startsWith("image/") || file.type === "image/heic" || file.type === "image/heif") {
+      resolve(file);
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        const scale = maxDim / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        if (!blob) { resolve(file); return; }
+        const compressed = new File([blob], file.name.replace(/\.(png|jpe?g)$/i, "") + ".jpg", { type: "image/jpeg" });
+        resolve(compressed.size < file.size ? compressed : file);
+      }, "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+function DocumentsScreen({ parentName, childName, onCreateBase, onAppendFile, onFinalize, onDone, prevChecked = {}, prevDocs = null }) {
   const [checked, setChecked] = React.useState(prevChecked || {});
   const [files, setFiles] = React.useState({});
   const [uploading, setUploading] = React.useState(false);
   const [comment, setComment] = React.useState("");
+  const [uploadStatus, setUploadStatus] = React.useState("");
+  const [submitError, setSubmitError] = React.useState("");
 
   const toggleCheck = (id) => {
     if (files[id] && (files[id] || []).length > 0) {
@@ -795,16 +832,21 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked = {}, pr
   const handleFile = (id, e) => {
     const fileList = Array.from(e.target.files);
     if (!fileList.length) return;
-    fileList.forEach(f => {
+    fileList.forEach(async f => {
+      const processed = await compressImageFile(f);
+      if (processed.size > MAX_FILE_BYTES) {
+        alert(`Файл «${f.name}» слишком большой (${(processed.size/1024/1024).toFixed(1)} МБ). Максимум ~3 МБ на файл. Сделайте фото в более низком качестве или сожмите PDF перед загрузкой.`);
+        return;
+      }
       const r = new FileReader();
       r.onload = (ev) => {
         setFiles(p => ({
           ...p,
-          [id]: [...(p[id] || []), { name: f.name, type: f.type, size: f.size, data: ev.target.result }]
+          [id]: [...(p[id] || []), { name: processed.name, type: processed.type, size: processed.size, data: ev.target.result }]
         }));
         setChecked(p => ({ ...p, [id]: true }));
       };
-      r.readAsDataURL(f);
+      r.readAsDataURL(processed);
     });
   };
 
@@ -825,20 +867,42 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked = {}, pr
 
   const handleSubmit = async () => {
     setUploading(true);
-    const docData = {
-      id: Date.now(),
-      date: new Date().toISOString(),
-      parentName,
-      childName,
-      checkedDocs: checked,
-      uploadedFiles: Object.entries(files).flatMap(([id, arr]) =>
-        (arr || []).map(f => ({ docId: id, fileName: f.name, fileType: f.type, fileSize: f.size, fileData: f.data }))
-      ),
-      comment,
-      formType: "documents",
-    };
-    await onSubmit(docData);
-    setUploading(false);
+    setSubmitError("");
+    try {
+      // 1. Создаём запись с отметками и комментарием — без файлов, лёгкий запрос.
+      setUploadStatus("Сохраняем список документов...");
+      const base = await onCreateBase({ checkedDocs: checked, comment, childName, parentName });
+      if (!base || !base.id) {
+        setSubmitError("Не удалось отправить документы. Проверьте интернет и попробуйте ещё раз.");
+        setUploading(false);
+        return;
+      }
+      const recordId = base.id;
+
+      // 2. Догружаем файлы ПО ОДНОМУ — каждый отдельным запросом.
+      const allFiles = Object.entries(files).flatMap(([docId, arr]) => arr.map(f => ({ docId, f })));
+      let doneCount = 0;
+      const failedNames = [];
+      for (const { docId, f } of allFiles) {
+        setUploadStatus(`Загружаем файл ${doneCount + 1} из ${allFiles.length}: ${f.name}`);
+        const ok = await onAppendFile(recordId, docId, f);
+        if (ok) doneCount++; else failedNames.push(f.name);
+      }
+
+      // 3. Все файлы загружены (или попытка сделана) — уведомляем администратора.
+      setUploadStatus("Завершаем отправку...");
+      await onFinalize(recordId);
+
+      if (failedNames.length) {
+        setSubmitError(`Не удалось загрузить: ${failedNames.join(", ")}. Остальное отправлено успешно — администратор уже видит запись, но эти файлы нужно будет прислать отдельно.`);
+      }
+      onDone();
+    } catch(e) {
+      setSubmitError("Не удалось отправить документы. Проверьте интернет и попробуйте ещё раз.");
+    } finally {
+      setUploading(false);
+      setUploadStatus("");
+    }
   };
 
   return (
@@ -927,8 +991,13 @@ function DocumentsScreen({ parentName, childName, onSubmit, prevChecked = {}, pr
         <p style={{ color:"rgba(255,255,255,0.7)", fontSize:13, marginBottom:16, lineHeight:1.6 }}>
           Нажимая кнопку вы отправляете список отмеченных документов и прикреплённые файлы администратору центра.
         </p>
+        {submitError && (
+          <div style={{ background:"#e84545", color:"#fff", borderRadius:10, padding:"12px 16px", marginBottom:16, fontSize:13, fontWeight:600, textAlign:"left" }}>
+            ⚠️ {submitError}
+          </div>
+        )}
         <Btn onClick={handleSubmit} variant="yellow" disabled={uploading} style={{ fontSize:15, padding:"14px 36px" }}>
-          {uploading ? "⏳ Отправляем..." : "✅ Отправить документы (" + totalChecked + " отмечено, " + totalFiles + " файлов)"}
+          {uploading ? ("⏳ " + (uploadStatus || "Отправляем...")) : "✅ Отправить документы (" + totalChecked + " отмечено, " + totalFiles + " файлов)"}
         </Btn>
       </div>
     </div>
@@ -952,7 +1021,7 @@ async function loadPreviousDocs(childName, parentName) {
   } catch(e) { return null; }
 }
 
-function DocsOnlyForm({ onSubmit }) {
+function DocsOnlyForm({ onCreateDocsBase, onAppendDocFile, onFinalizeDocs }) {
   const [step, setStep] = useState("info");
   const [childName, setChildName] = useState("");
   const [parentName, setParentName] = useState("");
@@ -990,7 +1059,8 @@ function DocsOnlyForm({ onSubmit }) {
 
   if (step === "docs") return (
     <DocumentsScreen parentName={parentName} childName={childName} prevChecked={prevChecked} prevDocs={prevDocs}
-      onSubmit={async (docData) => { await onSubmit({ ...docData, answers: { ...docData.answers, s0_1: childName } }); setDone(true); }}/>
+      onCreateBase={onCreateDocsBase} onAppendFile={onAppendDocFile} onFinalize={onFinalizeDocs}
+      onDone={()=>setDone(true)}/>
   );
 
   return (
@@ -1045,20 +1115,13 @@ async function apiCall(method, params = {}) {
 }
 
 async function sendToSheets(submission) {
+  // Примечание: form_type "documents" здесь больше не обрабатывается — отправка
+  // документов теперь идёт через createDocsBase()/appendDocFile() (см. AppInner),
+  // файлы догружаются по одному отдельными запросами, а не одним большим.
   try {
-    let answers = submission.answers || {};
-    if (submission.formType === "documents") {
-      answers = {
-        checkedDocs: JSON.stringify(submission.checkedDocs || {}),
-        comment: submission.comment || "",
-        fileNames: JSON.stringify((submission.uploadedFiles || []).map(f => ({ docId: f.docId, fileName: f.fileName, fileType: f.fileType }))),
-        fileData: JSON.stringify((submission.uploadedFiles || []).map(f => ({ docId: f.docId, data: f.fileData }))),
-        s0_1: submission.answers?.s0_1 || "",
-      };
-    }
     await apiCall("POST", {
       date: submission.date,
-      answers,
+      answers: submission.answers || {},
       parent_name: submission.parentName || "",
       form_type: submission.formType || "anamnez",
     });
@@ -1182,15 +1245,61 @@ function AppInner() {
     } catch(e) { console.error("Delete error:", e); }
   };
 
+  // ─── Отправка документов: создаём запись без файлов, потом догружаем файлы по одному ───
+  const createDocsBase = async ({ checkedDocs, comment, childName, parentName }) => {
+    try {
+      const result = await apiCall("POST", {
+        date: new Date().toISOString(),
+        answers: {
+          checkedDocs: JSON.stringify(checkedDocs || {}),
+          fileNames: JSON.stringify([]),
+          fileData: JSON.stringify([]),
+          comment: comment || "",
+          s0_1: childName || "",
+        },
+        parent_name: parentName || "",
+        form_type: "documents",
+        skipNotify: true,
+      });
+      return result && result.id ? { id: result.id } : null;
+    } catch(e) {
+      console.error("Create docs base error:", e);
+      return null;
+    }
+  };
+
+  const appendDocFile = async (id, docId, file) => {
+    try {
+      const res = await apiCall("PATCH", {
+        id, action: "appendFile",
+        docId, fileName: file.name, fileType: file.type, data: file.data,
+      });
+      return res.ok !== false;
+    } catch(e) {
+      console.error("Append file error:", e);
+      return false;
+    }
+  };
+
+  const finalizeDocsSubmission = async (id) => {
+    try {
+      await apiCall("PATCH", { id, action: "finalizeDocs" });
+      return true;
+    } catch(e) {
+      console.error("Finalize docs error:", e);
+      return false;
+    }
+  };
+
   return (
     <div style={{ minHeight:"100vh", background:C.grayLight, fontFamily:"'Segoe UI',Arial,sans-serif" }}>
       <Header view={view} setView={setView} auth={auth} onLogout={() => { setAuth(false); setView("client"); }}/>
       {saveStatus === "saving" && <div style={{ background:"#f5c842", color:"#1a2a2a", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>⏳ Сохраняем анкету...</div>}
       {saveStatus === "ok" && <div style={{ background:"#27ae60", color:"#fff", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>✅ Анкета успешно сохранена!</div>}
       {saveStatus === "error" && <div style={{ background:"#e84545", color:"#fff", textAlign:"center", padding:"10px", fontSize:13, fontWeight:700 }}>⚠️ Ошибка сохранения. Проверьте интернет.</div>}
-      {view === "client" && <ClientForm onSubmit={handleSubmit}/>}
+      {view === "client" && <ClientForm onSubmit={handleSubmit} onCreateDocsBase={createDocsBase} onAppendDocFile={appendDocFile} onFinalizeDocs={finalizeDocsSubmission}/>}
       {view === "family" && <FamilyForm onSubmit={handleSubmit}/>}
-      {view === "docs" && <DocsOnlyForm onSubmit={handleSubmit}/>}
+      {view === "docs" && <DocsOnlyForm onCreateDocsBase={createDocsBase} onAppendDocFile={appendDocFile} onFinalizeDocs={finalizeDocsSubmission}/>}
       {view === "edit" && <EditForm onUpdate={handleUpdate}/>}
       {view === "adminLogin" && <AdminLogin onLogin={() => { setAuth(true); setView("admin"); }}/>}
       {view === "admin" && auth && <AdminPanel submissions={submissions} loading={loading} loadError={loadError} onRefresh={loadSubmissions} onDelete={handleDelete} pendingOpenId={pendingOpenId} onConsumeOpenId={() => setPendingOpenId(null)}/>}
