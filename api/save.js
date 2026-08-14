@@ -224,20 +224,56 @@ export default async function handler(req, res) {
     const sql = neon(DATABASE_URL);
 
     if (req.method === 'POST') {
-      const { date, answers, parent_name, form_type } = req.body;
+      const { date, answers, parent_name, form_type, skipNotify } = req.body;
       const result = await sql`
         INSERT INTO ankety (date, answers, parent_name, form_type)
         VALUES (${date}, ${JSON.stringify(answers)}, ${parent_name || ''}, ${form_type || 'anamnez'})
         RETURNING id
       `;
       const newId = result[0].id;
-      const childName = answers?.s0_1 || answers?.f0_1 || "";
-      await checkAndNotify(sql, parent_name || "", childName, form_type || "anamnez", newId);
+      if (!skipNotify) {
+        const childName = answers?.s0_1 || answers?.f0_1 || "";
+        await checkAndNotify(sql, parent_name || "", childName, form_type || "anamnez", newId);
+      }
       return res.status(200).json({ ok: true, id: newId });
     }
 
     if (req.method === 'PATCH') {
-      const { id, answers, form_type } = req.body;
+      const { id, answers, form_type, action, docId, fileName, fileType, data } = req.body;
+
+      // Догрузка ОДНОГО файла к уже созданной записи "Документы" — каждый файл
+      // едет отдельным маленьким запросом, а не все разом одним большим (у Vercel
+      // жёсткий лимит 4.5 МБ на запрос, несколько фото с телефона легко его превышают).
+      if (action === 'appendFile') {
+        const rows = await sql`SELECT answers FROM ankety WHERE id = ${id}`;
+        if (!rows.length) return res.status(404).json({ error: 'Запись не найдена' });
+        let ans = rows[0].answers;
+        if (typeof ans === 'string') { try { ans = JSON.parse(ans); } catch(e) { ans = {}; } }
+        ans = ans || {};
+        let fileNames = [], fileData = [], checkedDocs = {};
+        try { fileNames = JSON.parse(ans.fileNames || '[]'); } catch(e) {}
+        try { fileData = JSON.parse(ans.fileData || '[]'); } catch(e) {}
+        try { checkedDocs = JSON.parse(ans.checkedDocs || '{}'); } catch(e) {}
+        fileNames.push({ docId, fileName, fileType });
+        fileData.push({ docId, data });
+        checkedDocs[docId] = true;
+        const newAns = { ...ans, fileNames: JSON.stringify(fileNames), fileData: JSON.stringify(fileData), checkedDocs: JSON.stringify(checkedDocs) };
+        await sql`UPDATE ankety SET answers = ${JSON.stringify(newAns)} WHERE id = ${id}`;
+        return res.status(200).json({ ok: true });
+      }
+
+      // Все файлы догружены — теперь можно отправить уведомление администратору.
+      if (action === 'finalizeDocs') {
+        const rows = await sql`SELECT answers, parent_name FROM ankety WHERE id = ${id}`;
+        if (rows.length) {
+          let ans = rows[0].answers;
+          if (typeof ans === 'string') { try { ans = JSON.parse(ans); } catch(e) { ans = {}; } }
+          const childName = (ans || {}).s0_1 || '';
+          await checkAndNotify(sql, rows[0].parent_name || '', childName, 'documents', id);
+        }
+        return res.status(200).json({ ok: true });
+      }
+
       await sql`
         UPDATE ankety SET answers = ${JSON.stringify(answers)}, form_type = ${form_type}
         WHERE id = ${id}
