@@ -785,34 +785,48 @@ function FamilyForm({ onSubmit }) {
 // чтобы уложиться в лимит размера одного запроса к серверу. PDF и другие не-фото файлы не трогает.
 const MAX_FILE_BYTES = 3 * 1024 * 1024; // ~3 МБ на файл — безопасный запас под лимит сервера в 4.5 МБ
 function compressImageFile(file, maxDim = 1920, quality = 0.8) {
-  return new Promise((resolve) => {
+  const work = new Promise((resolve) => {
     if (!file.type || !file.type.startsWith("image/") || file.type === "image/heic" || file.type === "image/heif") {
       resolve(file);
       return;
     }
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      let { width, height } = img;
-      if (width > maxDim || height > maxDim) {
-        const scale = maxDim / Math.max(width, height);
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
-      }
-      const canvas = document.createElement("canvas");
-      canvas.width = width; canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob((blob) => {
-        URL.revokeObjectURL(url);
-        if (!blob) { resolve(file); return; }
-        const compressed = new File([blob], file.name.replace(/\.(png|jpe?g)$/i, "") + ".jpg", { type: "image/jpeg" });
-        resolve(compressed.size < file.size ? compressed : file);
-      }, "image/jpeg", quality);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
+    try {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            const scale = maxDim / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(url);
+            if (!blob) { resolve(file); return; }
+            const compressed = new File([blob], file.name.replace(/\.(png|jpe?g)$/i, "") + ".jpg", { type: "image/jpeg" });
+            resolve(compressed.size < file.size ? compressed : file);
+          }, "image/jpeg", quality);
+        } catch(e) {
+          URL.revokeObjectURL(url);
+          resolve(file);
+        }
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    } catch(e) {
+      resolve(file);
+    }
   });
+  // Страховка: на некоторых мобильных браузерах сжатие крупных фото с камеры может
+  // зависнуть (canvas/памяти не хватает). Если за 8 секунд ничего не вышло —
+  // просто берём файл как есть, чтобы отправка не блокировалась намертво.
+  const timeout = new Promise((resolve) => setTimeout(() => resolve(file), 8000));
+  return Promise.race([work, timeout]);
 }
 
 function DocumentsScreen({ parentName, childName, onCreateBase, onAppendFile, onFinalize, onDone, prevChecked = {}, prevDocs = null }) {
@@ -833,12 +847,20 @@ function DocumentsScreen({ parentName, childName, onCreateBase, onAppendFile, on
     const fileList = Array.from(e.target.files);
     if (!fileList.length) return;
     fileList.forEach(async f => {
-      const processed = await compressImageFile(f);
-      if (processed.size > MAX_FILE_BYTES) {
-        alert(`Файл «${f.name}» слишком большой (${(processed.size/1024/1024).toFixed(1)} МБ). Максимум ~3 МБ на файл. Сделайте фото в более низком качестве или сожмите PDF перед загрузкой.`);
+      let processed = f;
+      try {
+        processed = await compressImageFile(f);
+      } catch(err) {
+        processed = f;
+      }
+      if (!processed || processed.size > MAX_FILE_BYTES) {
+        alert(`Файл «${f.name}» слишком большой (${((processed?.size||f.size)/1024/1024).toFixed(1)} МБ). Максимум ~3 МБ на файл. Сделайте фото в более низком качестве или сожмите PDF перед загрузкой.`);
         return;
       }
       const r = new FileReader();
+      r.onerror = () => {
+        alert(`Не удалось прочитать файл «${f.name}». Попробуйте выбрать его ещё раз или другой файл.`);
+      };
       r.onload = (ev) => {
         setFiles(p => ({
           ...p,
