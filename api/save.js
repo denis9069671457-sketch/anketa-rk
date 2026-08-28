@@ -20,6 +20,25 @@ function cabinetLink(id) {
   return `${SITE_URL}/?open=${id}`;
 }
 
+// Читает всю таблицу небольшими партиями (а не одним SELECT), чтобы не упереться
+// в лимит Neon на размер одного HTTP-ответа (64 МБ) — актуально для бэкапа,
+// где нужны ВСЕ файлы целиком.
+async function fetchAllRowsBatched(sql, batchSize = 20) {
+  const all = [];
+  let lastId = 0;
+  while (true) {
+    const batch = await sql`
+      SELECT id, date, answers, parent_name, form_type FROM ankety
+      WHERE id > ${lastId} ORDER BY id ASC LIMIT ${batchSize}
+    `;
+    if (!batch.length) break;
+    all.push(...batch);
+    lastId = batch[batch.length - 1].id;
+    if (batch.length < batchSize) break;
+  }
+  return all;
+}
+
 // Убирает тяжёлые base64-файлы из ответа для списков/автообновления.
 // Реальные файлы догружаются отдельно по id через ?ids=..., либо все разом через ?backup=1
 function stripDocsHeavyFields(row) {
@@ -286,8 +305,10 @@ export default async function handler(req, res) {
 
       // Читаемый ZIP-бэкап ВСЕХ записей: CSV-таблица + распакованные файлы клиентов +
       // текстовые файлы анкет — кнопка "Скачать резервную копию" в панели администратора.
+      // Тянем данные из базы небольшими партиями: у Neon жёсткий лимит 64 МБ на ответ
+      // по HTTP-протоколу, и при большом объёме файлов один общий SELECT в него не влезает.
       if (backup) {
-        const rows = await sql`SELECT id, date, answers, parent_name, form_type FROM ankety ORDER BY date DESC`;
+        const rows = await fetchAllRowsBatched(sql);
         const zipBuffer = buildBackupZip(rows);
         const filename = `anketa-rk-backup-${new Date().toISOString().slice(0, 10)}.zip`;
         res.setHeader('Content-Type', 'application/zip');
@@ -305,7 +326,9 @@ export default async function handler(req, res) {
       }
 
       if (child_name) {
-        const rows = await sql`SELECT id, date, answers, parent_name, form_type FROM ankety WHERE form_type = 'documents' ORDER BY date DESC LIMIT 20`;
+        // Убираем fileData ПРЯМО В SQL — иначе Postgres всё равно тянет все файлы
+        // из базы по HTTP, даже если мы потом обрежем их в JS уже после ответа.
+        const rows = await sql`SELECT id, date, (answers - 'fileData') as answers, parent_name, form_type FROM ankety WHERE form_type = 'documents' ORDER BY date DESC LIMIT 20`;
         const name = child_name.toLowerCase();
         const match = rows.find(r => {
           const n = (r.answers?.s0_1 || r.parent_name || '').toLowerCase();
@@ -315,10 +338,11 @@ export default async function handler(req, res) {
       }
 
       // Обычный список (первая загрузка, автообновление, поиск в разделе "Редактировать")
-      // — отдаём БЕЗ содержимого файлов, чтобы не гонять тяжёлые base64-строки лишний раз.
+      // — убираем fileData на уровне SQL, чтобы Neon не пытался передать по HTTP весь
+      // объём файлов сразу (лимит Neon — 64 МБ на один ответ, база уже выросла больше).
       const rows = form_type
-        ? await sql`SELECT id, date, answers, parent_name, form_type FROM ankety WHERE form_type = ${form_type} ORDER BY date DESC`
-        : await sql`SELECT id, date, answers, parent_name, form_type FROM ankety ORDER BY date DESC`;
+        ? await sql`SELECT id, date, (answers - 'fileData') as answers, parent_name, form_type FROM ankety WHERE form_type = ${form_type} ORDER BY date DESC`
+        : await sql`SELECT id, date, (answers - 'fileData') as answers, parent_name, form_type FROM ankety ORDER BY date DESC`;
       return res.status(200).json({ ok: true, data: rows.map(stripDocsHeavyFields) });
     }
 
