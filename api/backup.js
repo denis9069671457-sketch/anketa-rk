@@ -145,7 +145,7 @@ function safeName(s, maxlen = 70) {
 }
 const TYPE_LABELS = { anamnez: 'Анкета М.И. Лынской', family: 'Семейный фон', documents: 'Документы' };
 const EXT_BY_MIME = {
-  'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png', 'image/heic': '.heic',
+  'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png', 'image/heic': '.heic', 'image/webp': '.webp',
   'application/pdf': '.pdf', 'application/msword': '.doc',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
 };
@@ -155,11 +155,11 @@ function parseMaybeJson(v, fallback) {
   return v;
 }
 
-function buildBackupZip(rows) {
+async function buildBackupZip(rows) {
   const entries = [];
   const csvLines = ['ID;Дата;Тип;Ребёнок;Родитель;Город;Файлов прикреплено;Комментарий'];
 
-  rows.forEach(rec => {
+  for (const rec of rows) {
     let ans = rec.answers;
     if (typeof ans === 'string') { try { ans = JSON.parse(ans); } catch(e) { ans = {}; } }
     ans = ans || {};
@@ -179,20 +179,29 @@ function buildBackupZip(rows) {
       fileCount = Array.isArray(fileNames) ? fileNames.length : 0;
 
       if (Array.isArray(fileNames)) {
-        fileNames.forEach((fn, idx) => {
+        for (let idx = 0; idx < fileNames.length; idx++) {
+          const fn = fileNames[idx];
           const docId = (fn || {}).docId || '';
           const origName = (fn || {}).fileName || `file_${idx}`;
           let fd = Array.isArray(fileData) ? fileData[idx] : null;
           if (!fd || (fd.docId && fd.docId !== docId)) fd = (fileData || []).find(x => x.docId === docId) || fd;
-          const dataUri = (fd || {}).data || '';
-          const m = /^data:([^;]+);base64,(.*)$/s.exec(dataUri);
-          if (m) {
-            const buf = Buffer.from(m[2], 'base64');
-            let outName = safeName(origName, 80);
-            if (!outName.includes('.')) outName += (EXT_BY_MIME[m[1]] || '');
-            entries.push({ name: `Документы/${idSafe}/${outName}`, data: buf });
+          // Файлы теперь лежат в Vercel Blob — скачиваем каждый по ссылке для архива.
+          const url = (fd || {}).url;
+          if (url) {
+            try {
+              const fres = await fetch(url);
+              if (fres.ok) {
+                const buf = Buffer.from(await fres.arrayBuffer());
+                let outName = safeName(origName, 80);
+                if (!outName.includes('.')) {
+                  const ct = fres.headers.get('content-type') || '';
+                  outName += EXT_BY_MIME[ct] || '';
+                }
+                entries.push({ name: `Документы/${idSafe}/${outName}`, data: buf });
+              }
+            } catch(e) { /* пропускаем файл, если не удалось скачать из Blob */ }
           }
-        });
+        }
       }
     } else {
       const lines = [typeLabel, `Ребёнок: ${childName || '—'}`, `Родитель: ${parentName || '—'}`, `Дата: ${dateStr}`, ''];
@@ -204,7 +213,7 @@ function buildBackupZip(rows) {
     }
 
     csvLines.push([rec.id, dateStr, typeLabel, childName, parentName, ans.s0_4 || ans.f0_4 || '', fileCount, comment].map(csvEscape).join(';'));
-  });
+  }
 
   entries.unshift({ name: 'Список_анкет.csv', data: Buffer.from('\uFEFF' + csvLines.join('\n'), 'utf8') });
   return buildZip(entries);
@@ -224,7 +233,7 @@ export default async function handler(req, res) {
     // и при большом объёме файлов сплошной SELECT в него уже не помещается.
     const rows = await fetchAllRowsBatched(sql);
 
-    const zipBuffer = buildBackupZip(rows);
+    const zipBuffer = await buildBackupZip(rows);
     const sizeMB = (zipBuffer.length / (1024 * 1024)).toFixed(2);
     const filename = `anketa-rk-backup-${new Date().toISOString().slice(0, 10)}.zip`;
 
