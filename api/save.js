@@ -39,21 +39,6 @@ async function fetchAllRowsBatched(sql, batchSize = 20) {
   return all;
 }
 
-// Убирает тяжёлые base64-файлы из ответа для списков/автообновления.
-// Реальные файлы догружаются отдельно по id через ?ids=..., либо все разом через ?backup=1
-function stripDocsHeavyFields(row) {
-  if (!row || row.form_type !== 'documents') return row;
-  let ans = row.answers;
-  let wasString = typeof ans === 'string';
-  try {
-    const obj = wasString ? JSON.parse(ans) : (ans || {});
-    if (obj && obj.fileData !== undefined) obj.fileData = wasString ? '[]' : [];
-    return { ...row, answers: wasString ? JSON.stringify(obj) : obj };
-  } catch(e) {
-    return row;
-  }
-}
-
 // ─── Сборка читаемого ZIP-бэкапа (CSV + распакованные файлы + текст анкет) ───
 function crc32(buf) {
   if (!crc32.table) {
@@ -150,7 +135,7 @@ function safeName(s, maxlen = 70) {
 }
 const TYPE_LABELS = { anamnez: 'Анкета М.И. Лынской', family: 'Семейный фон', documents: 'Документы' };
 const EXT_BY_MIME = {
-  'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png', 'image/heic': '.heic',
+  'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png', 'image/heic': '.heic', 'image/webp': '.webp',
   'application/pdf': '.pdf', 'application/msword': '.doc',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
 };
@@ -160,11 +145,11 @@ function parseMaybeJson(v, fallback) {
   return v;
 }
 
-function buildBackupZip(rows) {
+async function buildBackupZip(rows) {
   const entries = [];
   const csvLines = ['ID;Дата;Тип;Ребёнок;Родитель;Город;Файлов прикреплено;Комментарий'];
 
-  rows.forEach(rec => {
+  for (const rec of rows) {
     let ans = rec.answers;
     if (typeof ans === 'string') { try { ans = JSON.parse(ans); } catch(e) { ans = {}; } }
     ans = ans || {};
@@ -184,20 +169,29 @@ function buildBackupZip(rows) {
       fileCount = Array.isArray(fileNames) ? fileNames.length : 0;
 
       if (Array.isArray(fileNames)) {
-        fileNames.forEach((fn, idx) => {
+        for (let idx = 0; idx < fileNames.length; idx++) {
+          const fn = fileNames[idx];
           const docId = (fn || {}).docId || '';
           const origName = (fn || {}).fileName || `file_${idx}`;
           let fd = Array.isArray(fileData) ? fileData[idx] : null;
           if (!fd || (fd.docId && fd.docId !== docId)) fd = (fileData || []).find(x => x.docId === docId) || fd;
-          const dataUri = (fd || {}).data || '';
-          const m = /^data:([^;]+);base64,(.*)$/s.exec(dataUri);
-          if (m) {
-            const buf = Buffer.from(m[2], 'base64');
-            let outName = safeName(origName, 80);
-            if (!outName.includes('.')) outName += (EXT_BY_MIME[m[1]] || '');
-            entries.push({ name: `Документы/${idSafe}/${outName}`, data: buf });
+          // Файлы теперь лежат в Vercel Blob — скачиваем каждый по ссылке для архива.
+          const url = (fd || {}).url;
+          if (url) {
+            try {
+              const fres = await fetch(url);
+              if (fres.ok) {
+                const buf = Buffer.from(await fres.arrayBuffer());
+                let outName = safeName(origName, 80);
+                if (!outName.includes('.')) {
+                  const ct = fres.headers.get('content-type') || '';
+                  outName += EXT_BY_MIME[ct] || '';
+                }
+                entries.push({ name: `Документы/${idSafe}/${outName}`, data: buf });
+              }
+            } catch(e) { /* пропускаем файл, если не удалось скачать из Blob */ }
           }
-        });
+        }
       }
     } else {
       const lines = [typeLabel, `Ребёнок: ${childName || '—'}`, `Родитель: ${parentName || '—'}`, `Дата: ${dateStr}`, ''];
@@ -209,7 +203,7 @@ function buildBackupZip(rows) {
     }
 
     csvLines.push([rec.id, dateStr, typeLabel, childName, parentName, ans.s0_4 || ans.f0_4 || '', fileCount, comment].map(csvEscape).join(';'));
-  });
+  }
 
   entries.unshift({ name: 'Список_анкет.csv', data: Buffer.from('\uFEFF' + csvLines.join('\n'), 'utf8') });
   return buildZip(entries);
@@ -258,11 +252,11 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PATCH') {
-      const { id, answers, form_type, action, docId, fileName, fileType, data } = req.body;
+      const { id, answers, form_type, action, docId, fileName, fileType, url } = req.body;
 
-      // Догрузка ОДНОГО файла к уже созданной записи "Документы" — каждый файл
-      // едет отдельным маленьким запросом, а не все разом одним большим (у Vercel
-      // жёсткий лимит 4.5 МБ на запрос, несколько фото с телефона легко его превышают).
+      // Файл уже загружен клиентом напрямую в Vercel Blob — здесь мы только
+      // сохраняем ссылку на него в записи. Ни сам файл, ни его копия через
+      // наш сервер не проходят, поэтому запрос всегда маленький и быстрый.
       if (action === 'appendFile') {
         const rows = await sql`SELECT answers FROM ankety WHERE id = ${id}`;
         if (!rows.length) return res.status(404).json({ error: 'Запись не найдена' });
@@ -274,7 +268,7 @@ export default async function handler(req, res) {
         try { fileData = JSON.parse(ans.fileData || '[]'); } catch(e) {}
         try { checkedDocs = JSON.parse(ans.checkedDocs || '{}'); } catch(e) {}
         fileNames.push({ docId, fileName, fileType });
-        fileData.push({ docId, data });
+        fileData.push({ docId, url });
         checkedDocs[docId] = true;
         const newAns = { ...ans, fileNames: JSON.stringify(fileNames), fileData: JSON.stringify(fileData), checkedDocs: JSON.stringify(checkedDocs) };
         await sql`UPDATE ankety SET answers = ${JSON.stringify(newAns)} WHERE id = ${id}`;
@@ -309,7 +303,7 @@ export default async function handler(req, res) {
       // по HTTP-протоколу, и при большом объёме файлов один общий SELECT в него не влезает.
       if (backup) {
         const rows = await fetchAllRowsBatched(sql);
-        const zipBuffer = buildBackupZip(rows);
+        const zipBuffer = await buildBackupZip(rows);
         const filename = `anketa-rk-backup-${new Date().toISOString().slice(0, 10)}.zip`;
         res.setHeader('Content-Type', 'application/zip');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -326,24 +320,22 @@ export default async function handler(req, res) {
       }
 
       if (child_name) {
-        // Убираем fileData ПРЯМО В SQL — иначе Postgres всё равно тянет все файлы
-        // из базы по HTTP, даже если мы потом обрежем их в JS уже после ответа.
-        const rows = await sql`SELECT id, date, (answers - 'fileData') as answers, parent_name, form_type FROM ankety WHERE form_type = 'documents' ORDER BY date DESC LIMIT 20`;
+        const rows = await sql`SELECT id, date, answers, parent_name, form_type FROM ankety WHERE form_type = 'documents' ORDER BY date DESC LIMIT 20`;
         const name = child_name.toLowerCase();
         const match = rows.find(r => {
           const n = (r.answers?.s0_1 || r.parent_name || '').toLowerCase();
           return n.includes(name.split(' ')[0]) || name.includes(n.split(' ')[0]);
         });
-        return res.status(200).json({ ok: true, data: match ? stripDocsHeavyFields(match) : null });
+        return res.status(200).json({ ok: true, data: match || null });
       }
 
-      // Обычный список (первая загрузка, автообновление, поиск в разделе "Редактировать")
-      // — убираем fileData на уровне SQL, чтобы Neon не пытался передать по HTTP весь
-      // объём файлов сразу (лимит Neon — 64 МБ на один ответ, база уже выросла больше).
+      // Обычный список (первая загрузка, автообновление, поиск в разделе "Редактировать").
+      // Файлы клиентов теперь хранятся в Vercel Blob, а в базе — только маленькие
+      // ссылки на них, так что можно спокойно отдавать всё одним запросом.
       const rows = form_type
-        ? await sql`SELECT id, date, (answers - 'fileData') as answers, parent_name, form_type FROM ankety WHERE form_type = ${form_type} ORDER BY date DESC`
-        : await sql`SELECT id, date, (answers - 'fileData') as answers, parent_name, form_type FROM ankety ORDER BY date DESC`;
-      return res.status(200).json({ ok: true, data: rows.map(stripDocsHeavyFields) });
+        ? await sql`SELECT id, date, answers, parent_name, form_type FROM ankety WHERE form_type = ${form_type} ORDER BY date DESC`
+        : await sql`SELECT id, date, answers, parent_name, form_type FROM ankety ORDER BY date DESC`;
+      return res.status(200).json({ ok: true, data: rows });
     }
 
     if (req.method === 'DELETE') {
