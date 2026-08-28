@@ -117,6 +117,24 @@ function buildZip(entries) {
   return Buffer.concat([...localParts, ...centralParts, end]);
 }
 
+// Читает всю таблицу небольшими партиями (а не одним SELECT), чтобы не упереться
+// в лимит Neon на размер одного HTTP-ответа (64 МБ) — здесь нужны ВСЕ файлы целиком.
+async function fetchAllRowsBatched(sql, batchSize = 20) {
+  const all = [];
+  let lastId = 0;
+  while (true) {
+    const batch = await sql`
+      SELECT id, date, answers, parent_name, form_type FROM ankety
+      WHERE id > ${lastId} ORDER BY id ASC LIMIT ${batchSize}
+    `;
+    if (!batch.length) break;
+    all.push(...batch);
+    lastId = batch[batch.length - 1].id;
+    if (batch.length < batchSize) break;
+  }
+  return all;
+}
+
 function csvEscape(v) {
   const s = String(v ?? '');
   return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -202,7 +220,9 @@ export default async function handler(req, res) {
 
   try {
     const sql = neon(DATABASE_URL);
-    const rows = await sql`SELECT id, date, answers, parent_name, form_type FROM ankety ORDER BY date DESC`;
+    // Тянем данные небольшими партиями — у Neon жёсткий лимит 64 МБ на один HTTP-ответ,
+    // и при большом объёме файлов сплошной SELECT в него уже не помещается.
+    const rows = await fetchAllRowsBatched(sql);
 
     const zipBuffer = buildBackupZip(rows);
     const sizeMB = (zipBuffer.length / (1024 * 1024)).toFixed(2);
