@@ -27,11 +27,16 @@ export default async function handler(req, res) {
 
   try {
     const sql = neon(DATABASE_URL);
-    const rows = await sql`SELECT id, answers FROM ankety WHERE form_type = 'documents'`;
+    // Сначала получаем только id — этот запрос лёгкий и не может упереться в лимит.
+    // Дальше читаем и обрабатываем записи ПО ОДНОЙ, чтобы даже самая тяжёлая
+    // старая запись не блокировала перенос остальных.
+    const idRows = await sql`SELECT id FROM ankety WHERE form_type = 'documents' ORDER BY id ASC`;
 
-    for (const row of rows) {
+    for (const { id } of idRows) {
       try {
-        let ans = row.answers;
+        const rows = await sql`SELECT answers FROM ankety WHERE id = ${id}`;
+        if (!rows.length) continue;
+        let ans = rows[0].answers;
         if (typeof ans === 'string') { try { ans = JSON.parse(ans); } catch(e) { ans = {}; } }
         ans = ans || {};
         const fileData = parseMaybeJson(ans.fileData, []);
@@ -52,7 +57,7 @@ export default async function handler(req, res) {
           if (!m) { newFileData.push(fd); continue; }
           const mime = m[1];
           const buf = Buffer.from(m[2], 'base64');
-          const pathname = `documents/${row.id}/${fd.docId || 'file'}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const pathname = `documents/${id}/${fd.docId || 'file'}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
           const blob = await put(pathname, buf, { access: 'public', contentType: mime, addRandomSuffix: true });
           newFileData.push({ docId: fd.docId, url: blob.url });
           changed = true;
@@ -61,11 +66,11 @@ export default async function handler(req, res) {
 
         if (changed) {
           const newAns = { ...ans, fileData: JSON.stringify(newFileData) };
-          await sql`UPDATE ankety SET answers = ${JSON.stringify(newAns)} WHERE id = ${row.id}`;
+          await sql`UPDATE ankety SET answers = ${JSON.stringify(newAns)} WHERE id = ${id}`;
         }
         results.processed++;
       } catch (e) {
-        results.errors.push({ id: row.id, error: e.message });
+        results.errors.push({ id, error: e.message });
       }
     }
 
