@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"; // v2
+import { upload } from "@vercel/blob/client";
 import LOGO_B64 from "./logo.png";
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -351,7 +352,7 @@ function exportToWord(submission) {
         const file = fileNames.find(f => f.docId === item.id);
         const fd = fileData.find(f => f.docId === item.id);
         html += `<div class="row"><span class="chk">${isChecked?"✅":"⬜"}</span><span style="flex:1">${esc(item.label)}</span>`;
-        if (file && fd) html += `<a class="file" href="${fd.data}" download="${file.fileName}">📎 ${esc(file.fileName)}</a>`;
+        if (file && fd) html += `<a class="file" href="${fd.url}" target="_blank" rel="noopener noreferrer">📎 ${esc(file.fileName)}</a>`;
         html += `</div>`;
       });
     });
@@ -783,7 +784,7 @@ function FamilyForm({ onSubmit }) {
 // ─── DocumentsScreen ──────────────────────────────────────────────────────────
 // Сжимает фото на телефоне клиента перед отправкой (уменьшает разрешение и качество),
 // чтобы уложиться в лимит размера одного запроса к серверу. PDF и другие не-фото файлы не трогает.
-const MAX_FILE_BYTES = 3 * 1024 * 1024; // ~3 МБ на файл — безопасный запас под лимит сервера в 4.5 МБ
+const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 МБ на файл — файлы летят напрямую в Vercel Blob, лимита в 4.5 МБ больше нет, это просто разумный предел
 function compressImageFile(file, maxDim = 1920, quality = 0.8) {
   const work = new Promise((resolve) => {
     if (!file.type || !file.type.startsWith("image/") || file.type === "image/heic" || file.type === "image/heif") {
@@ -854,21 +855,16 @@ function DocumentsScreen({ parentName, childName, onCreateBase, onAppendFile, on
         processed = f;
       }
       if (!processed || processed.size > MAX_FILE_BYTES) {
-        alert(`Файл «${f.name}» слишком большой (${((processed?.size||f.size)/1024/1024).toFixed(1)} МБ). Максимум ~3 МБ на файл. Сделайте фото в более низком качестве или сожмите PDF перед загрузкой.`);
+        alert(`Файл «${f.name}» слишком большой (${((processed?.size||f.size)/1024/1024).toFixed(1)} МБ). Максимум 20 МБ на файл.`);
         return;
       }
-      const r = new FileReader();
-      r.onerror = () => {
-        alert(`Не удалось прочитать файл «${f.name}». Попробуйте выбрать его ещё раз или другой файл.`);
-      };
-      r.onload = (ev) => {
-        setFiles(p => ({
-          ...p,
-          [id]: [...(p[id] || []), { name: processed.name, type: processed.type, size: processed.size, data: ev.target.result }]
-        }));
-        setChecked(p => ({ ...p, [id]: true }));
-      };
-      r.readAsDataURL(processed);
+      // Сам файл пока не загружаем — просто держим его в памяти до нажатия
+      // "Отправить документы", загрузка в Vercel Blob произойдёт тогда.
+      setFiles(p => ({
+        ...p,
+        [id]: [...(p[id] || []), { name: processed.name, type: processed.type, size: processed.size, file: processed }]
+      }));
+      setChecked(p => ({ ...p, [id]: true }));
     });
   };
 
@@ -1175,25 +1171,6 @@ async function loadFromSheets() {
   }));
 }
 
-// Догружает ПОЛНЫЕ данные (с прикреплёнными файлами) для конкретных id —
-// вызывается только когда админ реально открывает карточку "Документы" или печатает её.
-async function loadFullDocumentsByIds(ids) {
-  if (!ids || !ids.length) return [];
-  try {
-    const result = await apiCall("GET", { ids: ids.join(",") });
-    return (result.data || []).map(row => ({
-      id: row.id,
-      date: row.date,
-      answers: typeof row.answers === "string" ? JSON.parse(row.answers) : (row.answers || {}),
-      parent_name: row.parent_name || "",
-      form_type: row.form_type || "anamnez",
-    }));
-  } catch(e) {
-    console.error("Load full docs error:", e);
-    return [];
-  }
-}
-
 // ─── App root ─────────────────────────────────────────────────────────────────
 function AppInner() {
   const [pendingOpenId, setPendingOpenId] = React.useState(() => {
@@ -1292,9 +1269,15 @@ function AppInner() {
 
   const appendDocFile = async (id, docId, file) => {
     try {
+      // Файл летит напрямую в Vercel Blob из браузера клиента, минуя наш сервер —
+      // сюда возвращается только маленькая ссылка, которую мы и сохраняем в базе.
+      const blob = await upload(`documents/${id}/${docId}-${Date.now()}-${file.name}`, file.file, {
+        access: "public",
+        handleUploadUrl: "/api/blob-upload",
+      });
       const res = await apiCall("PATCH", {
         id, action: "appendFile",
-        docId, fileName: file.name, fileType: file.type, data: file.data,
+        docId, fileName: file.name, fileType: file.type, url: blob.url,
       });
       return res.ok !== false;
     } catch(e) {
@@ -1632,7 +1615,6 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletePw, setDeletePw] = useState("");
   const [deleteErr, setDeleteErr] = useState(false);
-  const [openingId, setOpeningId] = useState(null);
   const [exportingId, setExportingId] = useState(null);
   const topRef = useRef(null);
 
@@ -1661,35 +1643,18 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
     if (onConsumeOpenId) onConsumeOpenId();
   }, [pendingOpenId, groupedSubs]);
 
-  // Для карточек "Документы" список грузится БЕЗ файлов (экономим трафик/вычисления).
-  // Реальные файлы догружаются здесь — только когда админ открывает карточку.
-  const hydrateDocsSubmission = async (sub) => {
-    if (sub.form_type !== "documents" || sub._hydrated || !sub._mergedIds || !sub._mergedIds.length) return sub;
-    const fullRows = await loadFullDocumentsByIds(sub._mergedIds);
-    const merged = mergeDocumentGroups(fullRows);
-    return merged[0] ? { ...merged[0], _hydrated: true } : sub;
-  };
-
-  const openSubmission = async (sub) => {
-    if (sub.form_type === "documents" && !sub._hydrated) {
-      setOpeningId(sub.id);
-      try {
-        const full = await hydrateDocsSubmission(sub);
-        setSel(full);
-      } finally {
-        setOpeningId(null);
-      }
-    } else {
-      setSel(sub);
-    }
+  // Файлы клиентов хранятся в Vercel Blob, а в базе — только маленькие ссылки на них,
+  // поэтому карточку "Документы" можно открывать сразу из уже загруженного списка,
+  // без отдельного запроса на догрузку файлов.
+  const openSubmission = (sub) => {
+    setSel(sub);
     topRef?.current?.scrollIntoView();
   };
 
-  const doExport = async (sub) => {
+  const doExport = (sub) => {
     setExportingId(sub.id);
     try {
-      const full = await hydrateDocsSubmission(sub);
-      exportToWord(full);
+      exportToWord(sub);
     } catch(e) {} finally {
       setExportingId(null);
     }
@@ -1777,7 +1742,7 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
                         {itemFiles.map((file, fi) => {
                           const fd = fileData.find(f => f.docId === file.docId && (f.fileName ? f.fileName === file.fileName : true));
                           if (!fd) return null;
-                          return <a key={fi} href={fd.data} download={file.fileName} style={{ fontSize:12, color:C.teal, fontWeight:600, textDecoration:"none", background:C.tealLight, padding:"4px 10px", borderRadius:8 }}>📎 {file.fileName}</a>;
+                          return <a key={fi} href={fd.url} target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.teal, fontWeight:600, textDecoration:"none", background:C.tealLight, padding:"4px 10px", borderRadius:8 }}>📎 {file.fileName}</a>;
                         })}
                       </div>
                     );
@@ -1865,7 +1830,7 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
                   <p style={{ margin:0, fontSize:12, color:C.grayMid }}>{city}{city?" · ":""}{dateStr}</p>
                 </div>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  <button onClick={() => openSubmission(sub)} disabled={openingId === sub.id} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:openingId===sub.id?"not-allowed":"pointer", fontSize:13, fontWeight:700, background:C.grayLight, color:C.gray, opacity:openingId===sub.id?0.6:1 }}>{openingId === sub.id ? "⏳ Загрузка..." : "👁 Просмотр"}</button>
+                  <button onClick={() => openSubmission(sub)} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:C.grayLight, color:C.gray }}>👁 Просмотр</button>
                   <button onClick={() => doExport(sub)} disabled={exportingId === sub.id} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:exportingId===sub.id?"not-allowed":"pointer", fontSize:13, fontWeight:700, background:C.yellow, color:C.dark, opacity:exportingId===sub.id?0.6:1 }}>{exportingId === sub.id ? "⏳ Готовим..." : "📄 PDF"}</button>
                   <button onClick={() => confirmDelete(sub)} style={{ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700, background:"#fee2e2", color:"#e84545" }}>🗑️</button>
                 </div>
