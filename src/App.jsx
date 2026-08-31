@@ -623,6 +623,8 @@ function ClientForm({ onSubmit, onCreateDocsBase, onAppendDocFile, onFinalizeDoc
   const [familyCurSec, setFamilyCurSec] = useState(0);
   const [familyAnswers, setFamilyAnswers] = useState({});
   const [childNameErr, setChildNameErr] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const topRef = useRef(null);
   const filled = ALL_FIELDS.filter(f=>answers[f.id]).length;
   const pct = Math.round(filled/TOTAL*100);
@@ -643,7 +645,7 @@ function ClientForm({ onSubmit, onCreateDocsBase, onAppendDocFile, onFinalizeDoc
         <p style={{color:"rgba(255,255,255,0.75)",fontSize:14,marginBottom:24,lineHeight:1.7}}>
           Для полноценной диагностики специалисту также нужна <b style={{color:"#9b7fd4"}}>Анкета семейно-наследственного фона</b>.
         </p>
-        <Btn onClick={()=>{setStep("family");setFamilyCurSec(0);setFamilyAnswers({});}} variant="yellow" style={{fontSize:15,padding:"14px 32px"}}>
+        <Btn onClick={()=>{submittingRef.current=false;setSubmitting(false);setStep("family");setFamilyCurSec(0);setFamilyAnswers({});}} variant="yellow" style={{fontSize:15,padding:"14px 32px"}}>
           Заполнить анкету семейного фона →
         </Btn>
       </div>
@@ -697,7 +699,7 @@ function ClientForm({ onSubmit, onCreateDocsBase, onAppendDocFile, onFinalizeDoc
           <span style={{fontSize:13,color:C.grayMid}}>Раздел {familyCurSec+1} из {FSECS.length}</span>
           {familyCurSec<FSECS.length-1
             ?<Btn onClick={()=>{ if(familyCurSec===0 && !isFullName(familyAnswers["f0_1"])){setChildNameErr(true);return;} setChildNameErr(false); goFSec(familyCurSec+1); }} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
-            :<Btn onClick={async()=>{ if(!isFullName(familyAnswers["f0_1"])){setChildNameErr(true);goFSec(0);return;} const sub={id:Date.now(),date:new Date().toISOString(),answers:{...familyAnswers},parentName,formType:"family"};await onSubmit(sub);setStep("familyDone"); }} variant="yellow">✅ Отправить обе анкеты</Btn>
+            :<Btn onClick={async()=>{ if(submittingRef.current)return; if(!isFullName(familyAnswers["f0_1"])){setChildNameErr(true);goFSec(0);return;} submittingRef.current=true; setSubmitting(true); const sub={id:Date.now(),date:new Date().toISOString(),answers:{...familyAnswers},parentName,formType:"family"};await onSubmit(sub);setStep("familyDone"); }} disabled={submitting} variant="yellow">✅ Отправить обе анкеты</Btn>
           }
         </div>
       </div>
@@ -724,7 +726,7 @@ function ClientForm({ onSubmit, onCreateDocsBase, onAppendDocFile, onFinalizeDoc
         <span style={{fontSize:13,color:C.grayMid}}>Раздел {curSec+1} из {SECTIONS.length}</span>
         {curSec<SECTIONS.length-1
           ?<Btn onClick={()=>{ if(curSec===0 && !isFullName(answers["s0_1"])){setChildNameErr(true);return;} setChildNameErr(false); goSec(curSec+1); }} variant="primary">Далее →</Btn>
-          :<Btn onClick={()=>{ if(!isFullName(answers["s0_1"])){setChildNameErr(true);goSec(0);return;} onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"anamnez"});setStep("done"); }} variant="yellow">✅ Отправить анкету</Btn>
+          :<Btn onClick={()=>{ if(submittingRef.current)return; if(!isFullName(answers["s0_1"])){setChildNameErr(true);goSec(0);return;} submittingRef.current=true; setSubmitting(true); onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"anamnez"});setStep("done"); }} disabled={submitting} variant="yellow">✅ Отправить анкету</Btn>
         }
       </div>
     </div>
@@ -738,6 +740,8 @@ function FamilyForm({ onSubmit }) {
   const [answers, setAnswers] = useState({});
   const [parentName, setParentName] = useState("");
   const [childNameErr, setChildNameErr] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const topRef = useRef(null);
   const filled = ALL_FAMILY_FIELDS.filter(f=>answers[f.id]).length;
   const pct = Math.round(filled/FAMILY_TOTAL*100);
@@ -774,7 +778,7 @@ function FamilyForm({ onSubmit }) {
         <span style={{fontSize:13,color:C.grayMid}}>Раздел {curSec+1} из {FAMILY_SECTIONS.length}</span>
         {curSec<FAMILY_SECTIONS.length-1
           ?<Btn onClick={()=>{ if(curSec===0 && !isFullName(answers["f0_1"])){setChildNameErr(true);return;} setChildNameErr(false); goSec(curSec+1); }} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
-          :<Btn onClick={()=>{ if(!isFullName(answers["f0_1"])){setChildNameErr(true);goSec(0);return;} onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"family"});setStep("done"); }} variant="yellow">✅ Отправить анкету</Btn>
+          :<Btn onClick={()=>{ if(submittingRef.current)return; if(!isFullName(answers["f0_1"])){setChildNameErr(true);goSec(0);return;} submittingRef.current=true; setSubmitting(true); onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"family"});setStep("done"); }} disabled={submitting} variant="yellow">✅ Отправить анкету</Btn>
         }
       </div>
     </div>
