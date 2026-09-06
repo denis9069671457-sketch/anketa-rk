@@ -834,6 +834,18 @@ function compressImageFile(file, maxDim = 1920, quality = 0.8) {
   return Promise.race([work, timeout]);
 }
 
+// Простая очередь-мьютекс: гарантирует, что переданные в неё функции выполняются
+// строго одна за другой, даже если запущены "одновременно". Нужна, чтобы несколько
+// параллельных загрузок файлов не устраивали гонку при записи в базу.
+function createMutex() {
+  let chain = Promise.resolve();
+  return (fn) => {
+    const result = chain.then(fn, fn);
+    chain = result.then(() => {}, () => {});
+    return result;
+  };
+}
+
 function DocumentsScreen({ parentName, childName, onCreateBase, onAppendFile, onFinalize, onDone, prevChecked = {}, prevDocs = null }) {
   const [checked, setChecked] = React.useState(prevChecked || {});
   const [files, setFiles] = React.useState({});
@@ -901,15 +913,25 @@ function DocumentsScreen({ parentName, childName, onCreateBase, onAppendFile, on
       }
       const recordId = base.id;
 
-      // 2. Догружаем файлы ПО ОДНОМУ — каждый отдельным запросом.
+      // 2. Догружаем файлы — сама передача в Blob идёт параллельно (до 4 одновременно,
+      // чтобы не упереться в ограничения сети/браузера), а запись в базу — строго по
+      // очереди через dbMutex, чтобы не потерять ни один файл из-за гонки при записи.
       const allFiles = Object.entries(files).flatMap(([docId, arr]) => arr.map(f => ({ docId, f })));
       let doneCount = 0;
       const failedNames = [];
-      for (const { docId, f } of allFiles) {
-        setUploadStatus(`Загружаем файл ${doneCount + 1} из ${allFiles.length}: ${f.name}`);
-        const ok = await onAppendFile(recordId, docId, f);
-        if (ok) doneCount++; else failedNames.push(f.name);
-      }
+      const dbMutex = createMutex();
+      const CONCURRENCY = 4;
+      let nextIdx = 0;
+      const runWorker = async () => {
+        while (nextIdx < allFiles.length) {
+          const { docId, f } = allFiles[nextIdx++];
+          setUploadStatus(`Загружаем файлы: ${doneCount + failedNames.length} из ${allFiles.length}...`);
+          const ok = await onAppendFile(recordId, docId, f, dbMutex);
+          if (ok) doneCount++; else failedNames.push(f.name);
+          setUploadStatus(`Загружаем файлы: ${doneCount + failedNames.length} из ${allFiles.length}...`);
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, allFiles.length || 1) }, runWorker));
 
       // 3. Все файлы загружены (или попытка сделана) — уведомляем администратора.
       setUploadStatus("Завершаем отправку...");
@@ -1271,18 +1293,22 @@ function AppInner() {
     }
   };
 
-  const appendDocFile = async (id, docId, file) => {
+  const appendDocFile = async (id, docId, file, dbMutex) => {
     try {
-      // Файл летит напрямую в Vercel Blob из браузера клиента, минуя наш сервер —
-      // сюда возвращается только маленькая ссылка, которую мы и сохраняем в базе.
+      // Сама передача файла в Vercel Blob — можно параллельно, файлы независимы.
       const blob = await upload(`documents/${id}/${docId}-${Date.now()}-${file.name}`, file.file, {
         access: "public",
         handleUploadUrl: "/api/blob-upload",
       });
-      const res = await apiCall("PATCH", {
+      // А вот запись ссылки в базу — строго по очереди (через mutex): сервер читает всю
+      // запись, дописывает файл и сохраняет обратно, без блокировки. Если несколько таких
+      // запросов одновременно попадут на один и тот же id, один может затереть другой —
+      // поэтому здесь параллелизм намеренно убираем, оставляя его только на загрузке.
+      const doPatch = () => apiCall("PATCH", {
         id, action: "appendFile",
         docId, fileName: file.name, fileType: file.type, url: blob.url,
       });
+      const res = await (dbMutex ? dbMutex(doPatch) : doPatch());
       return res.ok !== false;
     } catch(e) {
       console.error("Append file error:", e);
