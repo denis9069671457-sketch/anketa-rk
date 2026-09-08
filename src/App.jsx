@@ -1300,6 +1300,14 @@ function AppInner() {
         access: "public",
         handleUploadUrl: "/api/blob-upload",
       });
+      // Защита: если по какой-то причине (сеть, сбой сервиса) загрузка вернулась
+      // без реальной ссылки на файл — считаем это ошибкой и НЕ пишем в базу
+      // "пустую" запись без url. Раньше такая ситуация молча считалась успехом,
+      // и файл выглядел прикреплённым, хотя физически не сохранился.
+      if (!blob || !blob.url) {
+        console.error("Upload returned no url for", file.name);
+        return false;
+      }
       // А вот запись ссылки в базу — строго по очереди (через mutex): сервер читает всю
       // запись, дописывает файл и сохраняет обратно, без блокировки. Если несколько таких
       // запросов одновременно попадут на один и тот же id, один может затереть другой —
@@ -1309,7 +1317,7 @@ function AppInner() {
         docId, fileName: file.name, fileType: file.type, url: blob.url,
       });
       const res = await (dbMutex ? dbMutex(doPatch) : doPatch());
-      return res.ok !== false;
+      return !!(res && res.ok === true);
     } catch(e) {
       console.error("Append file error:", e);
       return false;
