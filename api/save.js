@@ -258,6 +258,10 @@ export default async function handler(req, res) {
       // сохраняем ссылку на него в записи. Ни сам файл, ни его копия через
       // наш сервер не проходят, поэтому запрос всегда маленький и быстрый.
       if (action === 'appendFile') {
+        // Защита: без ссылки на файл записывать нечего — раньше такой запрос молча
+        // проходил и в базе оставалась "пустая" запись без url (файл выглядел
+        // прикреплённым, но физически потерян). Теперь явно отклоняем.
+        if (!url) return res.status(400).json({ error: 'Отсутствует ссылка на файл (url). Загрузка не сохранена.' });
         const rows = await sql`SELECT answers FROM ankety WHERE id = ${id}`;
         if (!rows.length) return res.status(404).json({ error: 'Запись не найдена' });
         let ans = rows[0].answers;
