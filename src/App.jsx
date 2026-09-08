@@ -853,6 +853,9 @@ function DocumentsScreen({ parentName, childName, onCreateBase, onAppendFile, on
   const [comment, setComment] = React.useState("");
   const [uploadStatus, setUploadStatus] = React.useState("");
   const [submitError, setSubmitError] = React.useState("");
+  // Если первая попытка отправки не удалась (см. ниже) и человек нажимает "Отправить"
+  // ещё раз — переиспользуем уже созданную запись вместо того, чтобы плодить дубли.
+  const [existingRecordId, setExistingRecordId] = React.useState(null);
 
   const toggleCheck = (id) => {
     if (files[id] && (files[id] || []).length > 0) {
@@ -904,14 +907,20 @@ function DocumentsScreen({ parentName, childName, onCreateBase, onAppendFile, on
     setSubmitError("");
     try {
       // 1. Создаём запись с отметками и комментарием — без файлов, лёгкий запрос.
-      setUploadStatus("Сохраняем список документов...");
-      const base = await onCreateBase({ checkedDocs: checked, comment, childName, parentName });
-      if (!base || !base.id) {
-        setSubmitError("Не удалось отправить документы. Проверьте интернет и попробуйте ещё раз.");
-        setUploading(false);
-        return;
+      // Если это повторная попытка после неудачи — используем уже созданную запись,
+      // а не создаём новую (иначе на каждый повтор плодилась бы отдельная анкета).
+      let recordId = existingRecordId;
+      if (!recordId) {
+        setUploadStatus("Сохраняем список документов...");
+        const base = await onCreateBase({ checkedDocs: checked, comment, childName, parentName });
+        if (!base || !base.id) {
+          setSubmitError("Не удалось отправить документы. Проверьте интернет и попробуйте ещё раз.");
+          setUploading(false);
+          return;
+        }
+        recordId = base.id;
+        setExistingRecordId(recordId);
       }
-      const recordId = base.id;
 
       // 2. Догружаем файлы — сама передача в Blob идёт параллельно (до 4 одновременно,
       // чтобы не упереться в ограничения сети/браузера), а запись в базу — строго по
@@ -933,14 +942,25 @@ function DocumentsScreen({ parentName, childName, onCreateBase, onAppendFile, on
       };
       await Promise.all(Array.from({ length: Math.min(CONCURRENCY, allFiles.length || 1) }, runWorker));
 
-      // 3. Все файлы загружены (или попытка сделана) — уведомляем администратора.
+      // 3. Уведомляем администратора о записи — но только если хоть что-то реально
+      // загрузилось. Раньше экран "Документы отправлены!" показывался всегда, даже
+      // если ВСЕ файлы не загрузились — предупреждение об ошибке при этом появлялось
+      // и тут же исчезало, потому что сразу следом менялся весь экран. Человек просто
+      // не успевал его увидеть и был уверен, что всё прошло успешно.
       setUploadStatus("Завершаем отправку...");
       await onFinalize(recordId);
 
       if (failedNames.length) {
-        setSubmitError(`Не удалось загрузить: ${failedNames.join(", ")}. Остальное отправлено успешно — администратор уже видит запись, но эти файлы нужно будет прислать отдельно.`);
+        if (doneCount === 0) {
+          setSubmitError(`Не удалось загрузить ни один файл (${failedNames.join(", ")}). Проверьте интернет-соединение и нажмите «Отправить» ещё раз — список отмеченных документов сохранён, файлы можно дослать.`);
+        } else {
+          setSubmitError(`Не удалось загрузить: ${failedNames.join(", ")}. Остальное (${doneCount} из ${allFiles.length}) отправлено успешно — администратор уже видит запись, но эти файлы нужно будет прислать отдельно.`);
+        }
+        // Экран НЕ переключаем — человек должен увидеть ошибку и решить, что делать
+        // дальше, а не попасть на экран успеха, когда часть или все файлы потеряны.
+      } else {
+        onDone();
       }
-      onDone();
     } catch(e) {
       setSubmitError("Не удалось отправить документы. Проверьте интернет и попробуйте ещё раз.");
     } finally {
@@ -1294,34 +1314,44 @@ function AppInner() {
   };
 
   const appendDocFile = async (id, docId, file, dbMutex) => {
-    try {
-      // Сама передача файла в Vercel Blob — можно параллельно, файлы независимы.
-      const blob = await upload(`documents/${id}/${docId}-${Date.now()}-${file.name}`, file.file, {
-        access: "public",
-        handleUploadUrl: "/api/blob-upload",
-      });
-      // Защита: если по какой-то причине (сеть, сбой сервиса) загрузка вернулась
-      // без реальной ссылки на файл — считаем это ошибкой и НЕ пишем в базу
-      // "пустую" запись без url. Раньше такая ситуация молча считалась успехом,
-      // и файл выглядел прикреплённым, хотя физически не сохранился.
-      if (!blob || !blob.url) {
-        console.error("Upload returned no url for", file.name);
-        return false;
+    // До 3 попыток на файл: если один раз не получилось (сеть моргнула, сервис
+    // Blob кратковременно недоступен) — не сдаёмся сразу, а пробуем ещё пару раз
+    // с небольшой паузой. Именно так терялась ЦЕЛАЯ партия файлов разом —
+    // один и тот же сбой бил по всем параллельным загрузкам одновременно.
+    const MAX_ATTEMPTS = 3;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        // Сама передача файла в Vercel Blob — можно параллельно, файлы независимы.
+        const blob = await upload(`documents/${id}/${docId}-${Date.now()}-${file.name}`, file.file, {
+          access: "public",
+          handleUploadUrl: "/api/blob-upload",
+        });
+        // Защита: если по какой-то причине (сеть, сбой сервиса) загрузка вернулась
+        // без реальной ссылки на файл — считаем это ошибкой и НЕ пишем в базу
+        // "пустую" запись без url. Раньше такая ситуация молча считалась успехом,
+        // и файл выглядел прикреплённым, хотя физически не сохранился.
+        if (!blob || !blob.url) {
+          throw new Error("Upload returned no url");
+        }
+        // А вот запись ссылки в базу — строго по очереди (через mutex): сервер читает всю
+        // запись, дописывает файл и сохраняет обратно, без блокировки. Если несколько таких
+        // запросов одновременно попадут на один и тот же id, один может затереть другой —
+        // поэтому здесь параллелизм намеренно убираем, оставляя его только на загрузке.
+        const doPatch = () => apiCall("PATCH", {
+          id, action: "appendFile",
+          docId, fileName: file.name, fileType: file.type, url: blob.url,
+        });
+        const res = await (dbMutex ? dbMutex(doPatch) : doPatch());
+        if (res && res.ok === true) return true;
+        throw new Error("Append PATCH did not confirm success");
+      } catch(e) {
+        console.error(`Append file error (attempt ${attempt}/${MAX_ATTEMPTS}) for ${file.name}:`, e);
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise(r => setTimeout(r, 800 * attempt)); // 800мс, потом 1600мс
+        }
       }
-      // А вот запись ссылки в базу — строго по очереди (через mutex): сервер читает всю
-      // запись, дописывает файл и сохраняет обратно, без блокировки. Если несколько таких
-      // запросов одновременно попадут на один и тот же id, один может затереть другой —
-      // поэтому здесь параллелизм намеренно убираем, оставляя его только на загрузке.
-      const doPatch = () => apiCall("PATCH", {
-        id, action: "appendFile",
-        docId, fileName: file.name, fileType: file.type, url: blob.url,
-      });
-      const res = await (dbMutex ? dbMutex(doPatch) : doPatch());
-      return !!(res && res.ok === true);
-    } catch(e) {
-      console.error("Append file error:", e);
-      return false;
     }
+    return false;
   };
 
   const finalizeDocsSubmission = async (id) => {
