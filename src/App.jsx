@@ -349,10 +349,16 @@ function exportToWord(submission) {
       html += `<h2>${esc(group.category)}${group.required?" (ОБЯЗАТЕЛЬНО)":""}</h2>`;
       group.items.forEach(item => {
         const isChecked = checked[item.id];
-        const file = fileNames.find(f => f.docId === item.id);
-        const fd = fileData.find(f => f.docId === item.id);
+        // Файлов на пункт может быть несколько — показываем все, а не только первый,
+        // и сопоставляем имя со ссылкой строго по позиции в parallel-массивах.
+        const itemFiles = fileNames
+          .map((f, idx) => ({ ...f, _idx: idx }))
+          .filter(f => f.docId === item.id);
         html += `<div class="row"><span class="chk">${isChecked?"✅":"⬜"}</span><span style="flex:1">${esc(item.label)}</span>`;
-        if (file && fd) html += `<a class="file" href="${fd.url}" target="_blank" rel="noopener noreferrer">📎 ${esc(file.fileName)}</a>`;
+        itemFiles.forEach(file => {
+          const fd = fileData[file._idx];
+          if (fd) html += `<a class="file" href="${fd.url}" target="_blank" rel="noopener noreferrer" style="margin-left:6px">📎 ${esc(file.fileName)}</a>`;
+        });
         html += `</div>`;
       });
     });
@@ -1643,11 +1649,14 @@ function mergeDocumentGroups(subs) {
 
     Object.entries(checked).forEach(([k, v]) => { if (v) g.answers.checkedDocs[k] = true; });
 
-    fileNames.forEach(fn => {
+    fileNames.forEach((fn, idx) => {
       const dup = g.answers.fileNames.some(x => x.docId === fn.docId && x.fileName === fn.fileName);
       if (!dup) {
         g.answers.fileNames.push(fn);
-        const fd = fileData.find(f => f.docId === fn.docId);
+        // Сопоставляем со ссылкой строго по позиции в исходных parallel-массивах
+        // этой конкретной отправки — иначе при нескольких файлах на один пункт
+        // внутри одной отправки все они получали ссылку первого из них.
+        const fd = fileData[idx];
         if (fd) g.answers.fileData.push(fd);
       }
     });
@@ -1802,15 +1811,23 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
                   </p>
                   {group.items.map(item => {
                     const isChecked = checked[item.id];
-                    const itemFiles = fileNames.filter(f => f.docId === item.id);
+                    // Файлов на один пункт может быть несколько ("Добавить ещё файл").
+                    // fileNames и fileData заполняются parallel-массивами — при загрузке
+                    // каждого файла в них добавляется запись на одной и той же позиции.
+                    // Раньше ссылка на файл искалась только по docId — при нескольких
+                    // файлах в одном пункте это всегда находило ПЕРВЫЙ файл, и все подписи
+                    // вели на одну и ту же ссылку. Теперь сопоставляем строго по позиции.
+                    const itemFiles = fileNames
+                      .map((f, idx) => ({ ...f, _idx: idx }))
+                      .filter(f => f.docId === item.id);
                     return (
                       <div key={item.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, padding:"8px 12px", background:isChecked?"#e8f8f8":"#fafafa", borderRadius:8, flexWrap:"wrap" }}>
                         <span>{isChecked ? "✅" : "⬜"}</span>
                         <span style={{ flex:1, fontSize:13, color:isChecked?C.tealDark:C.grayMid }}>{item.label}</span>
-                        {itemFiles.map((file, fi) => {
-                          const fd = fileData.find(f => f.docId === file.docId && (f.fileName ? f.fileName === file.fileName : true));
+                        {itemFiles.map((file) => {
+                          const fd = fileData[file._idx];
                           if (!fd) return null;
-                          return <a key={fi} href={fd.url} target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.teal, fontWeight:600, textDecoration:"none", background:C.tealLight, padding:"4px 10px", borderRadius:8 }}>📎 {file.fileName}</a>;
+                          return <a key={file._idx} href={fd.url} target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.teal, fontWeight:600, textDecoration:"none", background:C.tealLight, padding:"4px 10px", borderRadius:8 }}>📎 {file.fileName}</a>;
                         })}
                       </div>
                     );
