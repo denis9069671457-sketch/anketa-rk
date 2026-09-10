@@ -1,6 +1,24 @@
 import React, { useState, useEffect, useRef } from "react"; // v2
 import { upload } from "@vercel/blob/client";
 import LOGO_B64 from "./logo.png";
+
+// Некоторые браузеры (особенно iOS Safari при загрузке HEIC-фото) иногда отдают
+// пустой или ненадёжный file.type — сервер тогда отклоняет файл при загрузке,
+// потому что его тип не входит в список разрешённых, и вся загрузка молча
+// проваливается. Подстраховываемся: если браузер не сказал внятного типа,
+// определяем его сами по расширению имени файла.
+const MIME_BY_EXT = {
+  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp",
+  heic: "image/heic", heif: "image/heif", pdf: "application/pdf", doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+const ALLOWED_MIME = new Set(Object.values(MIME_BY_EXT));
+function resolveContentType(file) {
+  if (file.type && ALLOWED_MIME.has(file.type)) return file.type;
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  return MIME_BY_EXT[ext] || file.type || "application/octet-stream";
+}
+
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
   static getDerivedStateFromError(e) { return { error: e }; }
@@ -1328,9 +1346,13 @@ function AppInner() {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
         // Сама передача файла в Vercel Blob — можно параллельно, файлы независимы.
+        // Тип содержимого определяем сами (resolveContentType), а не полагаемся
+        // только на file.type от браузера — на iOS Safari он иногда пустой,
+        // из-за чего сервер отклонял файл, и загрузка проваливалась целиком.
         const blob = await upload(`documents/${id}/${docId}-${Date.now()}-${file.name}`, file.file, {
           access: "public",
           handleUploadUrl: "/api/blob-upload",
+          contentType: resolveContentType(file.file),
         });
         // Защита: если по какой-то причине (сеть, сбой сервиса) загрузка вернулась
         // без реальной ссылки на файл — считаем это ошибкой и НЕ пишем в базу
@@ -1345,7 +1367,7 @@ function AppInner() {
         // поэтому здесь параллелизм намеренно убираем, оставляя его только на загрузке.
         const doPatch = () => apiCall("PATCH", {
           id, action: "appendFile",
-          docId, fileName: file.name, fileType: file.type, url: blob.url,
+          docId, fileName: file.name, fileType: resolveContentType(file.file), url: blob.url,
         });
         const res = await (dbMutex ? dbMutex(doPatch) : doPatch());
         if (res && res.ok === true) return true;
