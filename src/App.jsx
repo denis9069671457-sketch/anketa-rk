@@ -375,7 +375,9 @@ function exportToWord(submission) {
         html += `<div class="row"><span class="chk">${isChecked?"✅":"⬜"}</span><span style="flex:1">${esc(item.label)}</span>`;
         itemFiles.forEach(file => {
           const fd = fileData[file._idx];
-          if (fd) html += `<a class="file" href="${fd.url}" target="_blank" rel="noopener noreferrer" style="margin-left:6px">📎 ${esc(file.fileName)}</a>`;
+          // Файл без реальной ссылки — "призрак" от старой сломанной загрузки
+          // (имя сохранилось, а сама ссылка нет). Не показываем такой как рабочий.
+          if (fd && fd.url) html += `<a class="file" href="${fd.url}" target="_blank" rel="noopener noreferrer" style="margin-left:6px">📎 ${esc(file.fileName)}</a>`;
         });
         html += `</div>`;
       });
@@ -1672,14 +1674,17 @@ function mergeDocumentGroups(subs) {
     Object.entries(checked).forEach(([k, v]) => { if (v) g.answers.checkedDocs[k] = true; });
 
     fileNames.forEach((fn, idx) => {
+      // Сопоставляем со ссылкой строго по позиции в исходных parallel-массивах этой
+      // конкретной отправки. Если ссылки нет — это "призрак" от старой сломанной
+      // загрузки (имя есть, файла физически нет). Пропускаем целиком — и имя, и
+      // место под файл — иначе в объединённой карточке появлялась бы подпись без
+      // возможности её открыть, а массивы имён и ссылок рассинхронизировались бы.
+      const fd = fileData[idx];
+      if (!fd || !fd.url) return;
       const dup = g.answers.fileNames.some(x => x.docId === fn.docId && x.fileName === fn.fileName);
       if (!dup) {
         g.answers.fileNames.push(fn);
-        // Сопоставляем со ссылкой строго по позиции в исходных parallel-массивах
-        // этой конкретной отправки — иначе при нескольких файлах на один пункт
-        // внутри одной отправки все они получали ссылку первого из них.
-        const fd = fileData[idx];
-        if (fd) g.answers.fileData.push(fd);
+        g.answers.fileData.push(fd);
       }
     });
 
@@ -1848,7 +1853,10 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
                         <span style={{ flex:1, fontSize:13, color:isChecked?C.tealDark:C.grayMid }}>{item.label}</span>
                         {itemFiles.map((file) => {
                           const fd = fileData[file._idx];
-                          if (!fd) return null;
+                          // Файл без реальной ссылки — "призрак" от старой сломанной
+                          // загрузки (имя сохранилось, а сама ссылка нет). Не показываем
+                          // такой как рабочий — иначе выглядит как документ, а открыть нечего.
+                          if (!fd || !fd.url) return null;
                           return <a key={file._idx} href={fd.url} target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.teal, fontWeight:600, textDecoration:"none", background:C.tealLight, padding:"4px 10px", borderRadius:8 }}>📎 {file.fileName}</a>;
                         })}
                       </div>
