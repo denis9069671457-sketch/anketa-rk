@@ -1825,13 +1825,25 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
         <p style={{ fontSize:13, color:C.grayMid, marginBottom:4 }}>Родитель: <b style={{color:C.dark}}>{sel.parent_name || "—"}</b></p>
         <p style={{ fontSize:13, color:C.grayMid, marginBottom:4 }}>Тип: <b style={{color:C.teal}}>{sel.form_type === "family" ? "🧬 Семейный фон" : sel.form_type === "documents" ? "📋 Документы" : "📋 М.И. Лынской"}</b></p>
         <p style={{ fontSize:13, color:C.grayMid, marginBottom:20 }}>Дата: {sel.date ? new Date(sel.date).toLocaleString("ru-RU") : "—"}{sel._mergedIds && sel._mergedIds.length > 1 ? ` · Объединено отправок: ${sel._mergedIds.length}` : ""}</p>
-        {sel.form_type === "documents" ? (
+        {sel.form_type === "documents" ? (() => {
+          const checked = (() => { try { return JSON.parse(sel.answers?.checkedDocs || "{}"); } catch(e) { return {}; } })();
+          const fileNames = (() => { try { return JSON.parse(sel.answers?.fileNames || "[]"); } catch(e) { return []; } })();
+          const fileData = (() => { try { return JSON.parse(sel.answers?.fileData || "[]"); } catch(e) { return []; } })();
+          // Сколько отмеченных пунктов на самом деле остались без единого реально
+          // загруженного файла — тот самый случай "молчаливой" потери при отправке.
+          const ghostCount = DOCUMENTS.flatMap(g=>g.items).filter(item => {
+            if (!checked[item.id]) return false;
+            const has = fileNames.some((f, idx) => f.docId === item.id && fileData[idx] && fileData[idx].url);
+            return !has;
+          }).length;
+          return (
           <div>
-            {(() => {
-              const checked = (() => { try { return JSON.parse(sel.answers?.checkedDocs || "{}"); } catch(e) { return {}; } })();
-              const fileNames = (() => { try { return JSON.parse(sel.answers?.fileNames || "[]"); } catch(e) { return []; } })();
-              const fileData = (() => { try { return JSON.parse(sel.answers?.fileData || "[]"); } catch(e) { return []; } })();
-              return DOCUMENTS.map(group => (
+            {ghostCount > 0 && (
+              <div style={{ background:"#fff3e0", border:"1px solid #ffb74d", borderRadius:10, padding:"12px 16px", marginBottom:16, fontSize:13, color:"#e65100", fontWeight:600 }}>
+                ⚠️ {ghostCount} {ghostCount===1?"пункт отмечен":"пункта(ов) отмечены"}, но файл не загрузился — нужно запросить у родителя повторно.
+              </div>
+            )}
+            {DOCUMENTS.map(group => (
                 <div key={group.id} style={{ marginBottom:16 }}>
                   <p style={{ fontSize:13, fontWeight:700, color:C.dark, marginBottom:8, borderBottom:`2px solid ${group.required?"#fee2e2":C.tealLight}`, paddingBottom:6 }}>
                     {group.category} {group.required && <span style={{fontSize:11,color:"#e84545"}}>(ОБЯЗАТЕЛЬНО)</span>}
@@ -1847,27 +1859,30 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
                     const itemFiles = fileNames
                       .map((f, idx) => ({ ...f, _idx: idx }))
                       .filter(f => f.docId === item.id);
+                    const realFiles = itemFiles.filter(file => fileData[file._idx] && fileData[file._idx].url);
+                    // Пункт отмечен, но ни одного реально загруженного файла нет (даже
+                    // после объединения всех отправок клиента) — та самая ситуация,
+                    // которая раньше выглядела точь-в-точь как обычный пустой пункт.
+                    // Показываем явное предупреждение вместо тихой пустоты.
+                    const isGhost = isChecked && realFiles.length === 0;
                     return (
-                      <div key={item.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, padding:"8px 12px", background:isChecked?"#e8f8f8":"#fafafa", borderRadius:8, flexWrap:"wrap" }}>
-                        <span>{isChecked ? "✅" : "⬜"}</span>
-                        <span style={{ flex:1, fontSize:13, color:isChecked?C.tealDark:C.grayMid }}>{item.label}</span>
-                        {itemFiles.map((file) => {
+                      <div key={item.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, padding:"8px 12px", background:isGhost?"#fff3e0":(isChecked?"#e8f8f8":"#fafafa"), borderRadius:8, flexWrap:"wrap", border:isGhost?"1px solid #ffb74d":"none" }}>
+                        <span>{isGhost ? "⚠️" : (isChecked ? "✅" : "⬜")}</span>
+                        <span style={{ flex:1, fontSize:13, color:isGhost?"#e65100":(isChecked?C.tealDark:C.grayMid) }}>{item.label}</span>
+                        {isGhost && <span style={{ fontSize:11, color:"#e65100", fontWeight:700 }}>отмечено, но файл не загрузился — нужно запросить повторно</span>}
+                        {realFiles.map((file) => {
                           const fd = fileData[file._idx];
-                          // Файл без реальной ссылки — "призрак" от старой сломанной
-                          // загрузки (имя сохранилось, а сама ссылка нет). Не показываем
-                          // такой как рабочий — иначе выглядит как документ, а открыть нечего.
-                          if (!fd || !fd.url) return null;
                           return <a key={file._idx} href={fd.url} target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.teal, fontWeight:600, textDecoration:"none", background:C.tealLight, padding:"4px 10px", borderRadius:8 }}>📎 {file.fileName}</a>;
                         })}
                       </div>
                     );
                   })}
                 </div>
-              ));
-            })()}
+              ))}
             {sel.answers?.comment && <p style={{ fontSize:13, color:C.gray, marginTop:12 }}>💬 {sel.answers.comment}</p>}
           </div>
-        ) : (
+          );
+        })() : (
           (sel.form_type === "family" ? FAMILY_SECTIONS : SECTIONS).map(sec => (
             <div key={sec.id} style={{ marginBottom:24 }}>
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12, paddingBottom:8, borderBottom:`2px solid ${sec.color}33` }}>
