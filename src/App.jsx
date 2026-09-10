@@ -725,7 +725,7 @@ function ClientForm({ onSubmit, onCreateDocsBase, onAppendDocFile, onFinalizeDoc
           <span style={{fontSize:13,color:C.grayMid}}>Раздел {familyCurSec+1} из {FSECS.length}</span>
           {familyCurSec<FSECS.length-1
             ?<Btn onClick={()=>{ if(familyCurSec===0 && !isFullName(familyAnswers["f0_1"])){setChildNameErr(true);return;} setChildNameErr(false); goFSec(familyCurSec+1); }} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
-            :<Btn onClick={async()=>{ if(submittingRef.current)return; if(!isFullName(familyAnswers["f0_1"])){setChildNameErr(true);goFSec(0);return;} submittingRef.current=true; setSubmitting(true); const sub={id:Date.now(),date:new Date().toISOString(),answers:{...familyAnswers},parentName,formType:"family"};await onSubmit(sub);setStep("familyDone"); }} disabled={submitting} variant="yellow">✅ Отправить обе анкеты</Btn>
+            :<Btn onClick={async()=>{ if(submittingRef.current)return; if(!isFullName(familyAnswers["f0_1"])){setChildNameErr(true);goFSec(0);return;} submittingRef.current=true; setSubmitting(true); const sub={id:Date.now(),date:new Date().toISOString(),answers:{...familyAnswers},parentName,formType:"family"}; const ok = await onSubmit(sub); if(ok){ setStep("familyDone"); } else { submittingRef.current=false; setSubmitting(false); } }} disabled={submitting} variant="yellow">✅ Отправить обе анкеты</Btn>
           }
         </div>
       </div>
@@ -752,7 +752,7 @@ function ClientForm({ onSubmit, onCreateDocsBase, onAppendDocFile, onFinalizeDoc
         <span style={{fontSize:13,color:C.grayMid}}>Раздел {curSec+1} из {SECTIONS.length}</span>
         {curSec<SECTIONS.length-1
           ?<Btn onClick={()=>{ if(curSec===0 && !isFullName(answers["s0_1"])){setChildNameErr(true);return;} setChildNameErr(false); goSec(curSec+1); }} variant="primary">Далее →</Btn>
-          :<Btn onClick={()=>{ if(submittingRef.current)return; if(!isFullName(answers["s0_1"])){setChildNameErr(true);goSec(0);return;} submittingRef.current=true; setSubmitting(true); onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"anamnez"});setStep("done"); }} disabled={submitting} variant="yellow">✅ Отправить анкету</Btn>
+          :<Btn onClick={async()=>{ if(submittingRef.current)return; if(!isFullName(answers["s0_1"])){setChildNameErr(true);goSec(0);return;} submittingRef.current=true; setSubmitting(true); const ok = await onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"anamnez"}); if(ok){ setStep("done"); } else { submittingRef.current=false; setSubmitting(false); } }} disabled={submitting} variant="yellow">✅ Отправить анкету</Btn>
         }
       </div>
     </div>
@@ -804,7 +804,7 @@ function FamilyForm({ onSubmit }) {
         <span style={{fontSize:13,color:C.grayMid}}>Раздел {curSec+1} из {FAMILY_SECTIONS.length}</span>
         {curSec<FAMILY_SECTIONS.length-1
           ?<Btn onClick={()=>{ if(curSec===0 && !isFullName(answers["f0_1"])){setChildNameErr(true);return;} setChildNameErr(false); goSec(curSec+1); }} variant="primary" style={{background:"#7b5ea7"}}>Далее →</Btn>
-          :<Btn onClick={()=>{ if(submittingRef.current)return; if(!isFullName(answers["f0_1"])){setChildNameErr(true);goSec(0);return;} submittingRef.current=true; setSubmitting(true); onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"family"});setStep("done"); }} disabled={submitting} variant="yellow">✅ Отправить анкету</Btn>
+          :<Btn onClick={async()=>{ if(submittingRef.current)return; if(!isFullName(answers["f0_1"])){setChildNameErr(true);goSec(0);return;} submittingRef.current=true; setSubmitting(true); const ok = await onSubmit({id:Date.now(),date:new Date().toISOString(),answers,parentName,formType:"family"}); if(ok){ setStep("done"); } else { submittingRef.current=false; setSubmitting(false); } }} disabled={submitting} variant="yellow">✅ Отправить анкету</Btn>
         }
       </div>
     </div>
@@ -1208,28 +1208,37 @@ async function sendToSheets(submission) {
   // Примечание: form_type "documents" здесь больше не обрабатывается — отправка
   // документов теперь идёт через createDocsBase()/appendDocFile() (см. AppInner),
   // файлы догружаются по одному отдельными запросами, а не одним большим.
-  try {
-    await apiCall("POST", {
-      date: submission.date,
-      answers: submission.answers || {},
-      parent_name: submission.parentName || "",
-      form_type: submission.formType || "anamnez",
-    });
-    return true;
-  } catch(e) {
-    console.error("Save error:", e);
-    return false;
+  // До 3 попыток — если сеть моргнула один раз, не теряем всю анкету целиком.
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      await apiCall("POST", {
+        date: submission.date,
+        answers: submission.answers || {},
+        parent_name: submission.parentName || "",
+        form_type: submission.formType || "anamnez",
+      });
+      return true;
+    } catch(e) {
+      console.error(`Save error (attempt ${attempt}/${MAX_ATTEMPTS}):`, e);
+      if (attempt < MAX_ATTEMPTS) await new Promise(r => setTimeout(r, 800 * attempt));
+    }
   }
+  return false;
 }
 
 async function updateSubmission(id, answers, formType) {
-  try {
-    const res = await apiCall("PATCH", { id, answers, form_type: formType });
-    return res.ok !== false;
-  } catch(e) {
-    console.error("Update error:", e);
-    return false;
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await apiCall("PATCH", { id, answers, form_type: formType });
+      return res.ok !== false;
+    } catch(e) {
+      console.error(`Update error (attempt ${attempt}/${MAX_ATTEMPTS}):`, e);
+      if (attempt < MAX_ATTEMPTS) await new Promise(r => setTimeout(r, 800 * attempt));
+    }
   }
+  return false;
 }
 
 async function loadFromSheets() {
@@ -1293,8 +1302,15 @@ function AppInner() {
     try {
       const ok = await sendToSheets(sub);
       setSaveStatus(ok ? "ok" : "error");
-    } catch(e) { setSaveStatus("error"); }
-    setTimeout(() => setSaveStatus(null), 3000);
+      // "Успешно" убираем само через 3 сек, а ошибку — оставляем на экране, пока
+      // человек не предпримет что-то сам (повторную попытку). Если её тоже прятать
+      // через 3 секунды, легко пропустить и не понять, что анкета не сохранилась.
+      if (ok) setTimeout(() => setSaveStatus(null), 3000);
+      return ok;
+    } catch(e) {
+      setSaveStatus("error");
+      return false;
+    }
   };
 
   const handleUpdate = async (id, answers, formType) => {
