@@ -245,8 +245,17 @@ export default async function handler(req, res) {
       `;
       const newId = result[0].id;
       if (!skipNotify) {
-        const childName = answers?.s0_1 || answers?.f0_1 || "";
-        await checkAndNotify(sql, parent_name || "", childName, form_type || "anamnez", newId);
+        // Уведомление — вторичное действие. Если оно споткнётся (например, свой
+        // же вспомогательный SELECT внутри checkAndNotify), это НЕ должно выглядеть
+        // как провал всей отправки — сама анкета уже сохранена строкой выше.
+        // Раньше такая ошибка попадала в общий catch и клиенту приходил 500,
+        // хотя данные были целы — а повторная попытка создала бы дубль.
+        try {
+          const childName = answers?.s0_1 || answers?.f0_1 || "";
+          await checkAndNotify(sql, parent_name || "", childName, form_type || "anamnez", newId);
+        } catch (notifyErr) {
+          console.error("Notify error (данные уже сохранены, id=" + newId + "):", notifyErr);
+        }
       }
       return res.status(200).json({ ok: true, id: newId });
     }
@@ -280,13 +289,19 @@ export default async function handler(req, res) {
       }
 
       // Все файлы догружены — теперь можно отправить уведомление администратору.
+      // Это чисто уведомительное действие — даже если оно целиком провалится,
+      // сами документы уже сохранены раньше (через appendFile), терять тут нечего.
       if (action === 'finalizeDocs') {
-        const rows = await sql`SELECT answers, parent_name FROM ankety WHERE id = ${id}`;
-        if (rows.length) {
-          let ans = rows[0].answers;
-          if (typeof ans === 'string') { try { ans = JSON.parse(ans); } catch(e) { ans = {}; } }
-          const childName = (ans || {}).s0_1 || '';
-          await checkAndNotify(sql, rows[0].parent_name || '', childName, 'documents', id);
+        try {
+          const rows = await sql`SELECT answers, parent_name FROM ankety WHERE id = ${id}`;
+          if (rows.length) {
+            let ans = rows[0].answers;
+            if (typeof ans === 'string') { try { ans = JSON.parse(ans); } catch(e) { ans = {}; } }
+            const childName = (ans || {}).s0_1 || '';
+            await checkAndNotify(sql, rows[0].parent_name || '', childName, 'documents', id);
+          }
+        } catch (notifyErr) {
+          console.error("Notify error on finalizeDocs (id=" + id + "):", notifyErr);
         }
         return res.status(200).json({ ok: true });
       }
