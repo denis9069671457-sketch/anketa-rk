@@ -1325,11 +1325,18 @@ function AppInner() {
   };
 
   const handleDelete = async (sub) => {
-    try {
-      const ids = (sub && sub._mergedIds && sub._mergedIds.length) ? sub._mergedIds : [sub.id];
-      await Promise.all(ids.map(id => apiCall("DELETE", { id })));
-      setSubmissions(prev => prev.filter(s => !ids.includes(s.id)));
-    } catch(e) { console.error("Delete error:", e); }
+    const ids = (sub && sub._mergedIds && sub._mergedIds.length) ? sub._mergedIds : [sub.id];
+    // Promise.all падает целиком при ЛЮБОЙ одной неудаче, даже если остальные
+    // записи уже успешно удалились — при объединённой карточке (несколько
+    // исходных отправок) это могло тихо оставить часть записей неудалёнными,
+    // без единого сообщения об ошибке. Теперь отслеживаем каждую по отдельности.
+    const results = await Promise.allSettled(ids.map(id => apiCall("DELETE", { id })));
+    const succeededIds = ids.filter((id, i) => results[i].status === "fulfilled");
+    const failedCount = ids.length - succeededIds.length;
+    if (succeededIds.length) {
+      setSubmissions(prev => prev.filter(s => !succeededIds.includes(s.id)));
+    }
+    return { ok: failedCount === 0, failedCount, totalCount: ids.length };
   };
 
   // ─── Отправка документов: создаём запись без файлов, потом догружаем файлы по одному ───
@@ -1735,6 +1742,8 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletePw, setDeletePw] = useState("");
   const [deleteErr, setDeleteErr] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteOpErr, setDeleteOpErr] = useState("");
   const [exportingId, setExportingId] = useState(null);
   const topRef = useRef(null);
 
@@ -1801,10 +1810,21 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
       setBackingUp(false);
     }
   };
-  const confirmDelete = (sub) => { setDeleteTarget(sub); setDeletePw(""); setDeleteErr(false); };
-  const executeDelete = () => {
-    if (deletePw === DELETE_PASSWORD) { onDelete(deleteTarget); setDeleteTarget(null); if (sel?.id === deleteTarget.id) setSel(null); }
-    else setDeleteErr(true);
+  const confirmDelete = (sub) => { setDeleteTarget(sub); setDeletePw(""); setDeleteErr(false); setDeleteOpErr(""); };
+  const executeDelete = async () => {
+    if (deletePw !== DELETE_PASSWORD) { setDeleteErr(true); return; }
+    setDeleting(true);
+    setDeleteOpErr("");
+    const result = await onDelete(deleteTarget);
+    setDeleting(false);
+    if (result && result.ok === false) {
+      // Часть (или все) записей не удалились — не закрываем окно молча,
+      // человек должен знать и попробовать ещё раз.
+      setDeleteOpErr(`Не удалось удалить ${result.failedCount} из ${result.totalCount} записей. Проверьте интернет и попробуйте ещё раз.`);
+      return;
+    }
+    setDeleteTarget(null);
+    if (sel?.id === deleteTarget.id) setSel(null);
   };
 
   const DelModal = deleteTarget ? (
@@ -1818,9 +1838,10 @@ function AdminPanel({ submissions = [], loading = false, loadError = null, onRef
           onKeyDown={e => e.key === "Enter" && executeDelete()}
           style={{ width:"100%", border:`1.5px solid ${deleteErr?"#e05050":"#e2e8f0"}`, borderRadius:8, padding:"10px 14px", fontSize:14, textAlign:"center", outline:"none", marginBottom:8, boxSizing:"border-box" }} autoFocus/>
         {deleteErr && <p style={{ color:"#e05050", fontSize:13, margin:"0 0 12px" }}>Неверный пароль</p>}
+        {deleteOpErr && <p style={{ color:"#e05050", fontSize:13, margin:"0 0 12px", fontWeight:600 }}>⚠️ {deleteOpErr}</p>}
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={() => setDeleteTarget(null)} style={{ flex:1, padding:"10px", borderRadius:8, border:"1.5px solid #e2e8f0", background:"#f4f6f8", cursor:"pointer", fontSize:14, fontWeight:600 }}>Отмена</button>
-          <button onClick={executeDelete} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:"#e84545", color:"#fff", cursor:"pointer", fontSize:14, fontWeight:700 }}>Удалить</button>
+          <button onClick={executeDelete} disabled={deleting} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:"#e84545", color:"#fff", cursor:deleting?"default":"pointer", fontSize:14, fontWeight:700, opacity:deleting?0.6:1 }}>{deleting?"Удаляем...":"Удалить"}</button>
         </div>
       </div>
     </div>
