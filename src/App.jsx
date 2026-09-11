@@ -336,6 +336,16 @@ const ADMIN_PASSWORD = "3211";
 
 // ─── Word export ──────────────────────────────────────────────────────────────
 function exportToWord(submission) {
+  // На iOS Safari (и некоторых мобильных браузерах) window.open() с уже готовой
+  // blob-ссылкой часто открывает пустую вкладку или не открывает её вообще —
+  // известное ограничение. Обходной путь: открыть вкладку СРАЗУ, синхронно,
+  // в момент самого клика (пока браузер ещё считает это действием пользователя),
+  // а содержимое подгрузить в неё уже после того, как HTML будет готов.
+  const printWin = window.open('', '_blank');
+  if (!printWin) {
+    alert('Не удалось открыть окно печати. Разрешите всплывающие окна для этого сайта в настройках браузера и попробуйте снова.');
+    return;
+  }
   const esc = (t) => String(t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const isFamily = submission.form_type === "family";
   const isDocs = submission.form_type === "documents";
@@ -360,7 +370,16 @@ function exportToWord(submission) {
     let html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"/>
     <style>@media print{.bar{display:none!important}body{margin:10mm 15mm}}body{font-family:Arial,sans-serif;font-size:12px;margin:20px 30px;color:#111}.bar{position:fixed;top:0;left:0;right:0;background:#1a2a2a;padding:10px 20px;display:flex;gap:12px;align-items:center;z-index:99}.bar span{color:#2ab5b5;font-weight:bold;flex:1}.bp{background:#2ab5b5;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:bold;cursor:pointer}.cnt{margin-top:52px}.ttl{text-align:center;margin-bottom:16px}.ttl h1{font-size:15px;font-weight:bold;margin:0 0 4px}.ttl p{font-size:11px;color:#555;margin:2px 0}h2{font-size:13px;font-weight:bold;background:#f0ecf8;border:1px solid #aaa;padding:5px;margin:10px 0 0}.row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #eee;font-size:12px}.chk{font-size:16px}.file{color:#2ab5b5;font-weight:bold}</style>
     </head><body>
-    <div class="bar"><span>Документы: ${esc(submission.parent_name||"—")}</span><button class="bp" onclick="window.print()">🖨️ Печать</button></div>
+    <div class="bar"><span>Документы: ${esc(submission.parent_name||"—")}</span><button class="bp" onclick="window.print()">🖨️ Печать</button><button class="bp" id="dlBtn" style="background:#f5c842;color:#1a2a2a">💾 Скачать</button></div>
+    <script>
+      document.getElementById('dlBtn').onclick = function() {
+        var blob = new Blob([document.documentElement.outerHTML], {type:'text/html;charset=utf-8'});
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = ${JSON.stringify(`Документы_${(submission.parent_name||"клиент").replace(/[\\/:*?"<>|]/g,"_")}.html`)};
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      };
+    </script>
     <div class="cnt"><div class="ttl"><h1>Список документов клиента</h1><p>Центр Рината Каримова · ${new Date(submission.date).toLocaleString("ru-RU")}</p><p>Родитель: <b>${esc(submission.parent_name||"—")}</b> · Отмечено: ${totalChecked} документов</p></div>`;
 
     DOCUMENTS.forEach(group => {
@@ -387,7 +406,7 @@ function exportToWord(submission) {
       html += `<div style="margin-top:16px;padding:12px;background:#f9f9f9;border-radius:8px;font-size:12px"><b>Комментарий:</b> ${esc(submission.answers.comment)}</div>`;
     }
     html += `</div></body></html>`;
-    window.open(URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})),"_blank");
+    printWin.location.href = URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"}));
     return;
   }
 
@@ -414,8 +433,18 @@ function exportToWord(submission) {
   <div class="top-bar">
     <span>${esc(title)}: ${esc(submission.answers?.[childKey]||"—")}</span>
     <button class="btn-print" onclick="window.print()">🖨️ Печать / PDF</button>
+    <button class="btn-print" id="dlBtn" style="background:#f5c842;color:#1a2a2a">💾 Скачать</button>
     <span style="background:#f5c842;color:#1a2a2a;border-radius:8px;padding:8px 14px;font-size:11px;font-weight:bold">iPad: Печать → Файлы</span>
   </div>
+  <script>
+    document.getElementById('dlBtn').onclick = function() {
+      var blob = new Blob([document.documentElement.outerHTML], {type:'text/html;charset=utf-8'});
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = ${JSON.stringify(`${title.includes("семейно") ? "Семейный_фон" : "Анкета"}_${(submission.answers?.[childKey]||"клиент").toString().replace(/[\\/:*?"<>|]/g,"_")}.html`)};
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    };
+  </script>
   <div class="content">
     <div class="title-block">
       <h1>${esc(title)}</h1>
@@ -440,7 +469,7 @@ function exportToWord(submission) {
   });
 
   html += `</div></body></html>`;
-  window.open(URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})),"_blank");
+  printWin.location.href = URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"}));
 }
 
 
